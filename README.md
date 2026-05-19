@@ -14,7 +14,7 @@ System 7 chrome (striped title bars, beveled buttons, inset borders) because con
 
 ## The Name
 
-From [Parquet Courts](https://en.wikipedia.org/wiki/Parquet_Courts), a Brooklyn band who put out a song called "Chaos Dimension." Felt about right for a tool that orchestrates several agents trying to do several things at once.
+"Chaos dimension" is a lyric from ["Almost Had to Start a Fight / In and Out of Patience"](https://open.spotify.com/track/7xhZCVsVhDSjhFm41mOX10?si=5bc063da68f24a56) by Parquet Courts, a Brooklyn band. Felt about right for a tool that orchestrates several agents trying to do several things at once.
 
 ## Quick Start
 
