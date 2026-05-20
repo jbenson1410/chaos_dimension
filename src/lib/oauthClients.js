@@ -1,5 +1,5 @@
-const MAX_NAME = 200;
-const MAX_URIS = 10;
+export const MAX_REDIRECT_URIS = 10;
+export const MAX_CLIENT_NAME_LENGTH = 200;
 
 export function normalizeRedirectUri(uri) {
   try {
@@ -22,9 +22,10 @@ function uriOk(raw) {
   let u;
   try { u = new URL(raw); } catch { return false; }
   if (u.hash) return false;
+  if (u.username || u.password) return false;
   if (u.protocol === 'https:') return true;
   if (u.protocol === 'http:') {
-    return u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '::1';
+    return u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]';
   }
   return false;
 }
@@ -34,12 +35,12 @@ export function validateRegistrationRequest(body) {
     return { ok: false, error: 'invalid_client_metadata', message: 'body required' };
   }
   const name = body.client_name;
-  if (typeof name !== 'string' || name.length === 0 || name.length > MAX_NAME) {
-    return { ok: false, error: 'invalid_client_metadata', message: 'client_name required (<=200 chars)' };
+  if (typeof name !== 'string' || name.trim().length === 0 || name.length > MAX_CLIENT_NAME_LENGTH) {
+    return { ok: false, error: 'invalid_client_metadata', message: `client_name required (<=${MAX_CLIENT_NAME_LENGTH} chars)` };
   }
   const uris = body.redirect_uris;
-  if (!Array.isArray(uris) || uris.length === 0 || uris.length > MAX_URIS) {
-    return { ok: false, error: 'invalid_redirect_uri', message: 'redirect_uris must be a non-empty array' };
+  if (!Array.isArray(uris) || uris.length === 0 || uris.length > MAX_REDIRECT_URIS) {
+    return { ok: false, error: 'invalid_redirect_uri', message: `redirect_uris must be a non-empty array (<=${MAX_REDIRECT_URIS} entries)` };
   }
   for (const u of uris) {
     if (!uriOk(u)) return { ok: false, error: 'invalid_redirect_uri', message: `bad redirect_uri: ${u}` };
