@@ -10,12 +10,13 @@ import AgentCard from '../components/AgentCard';
 import AboutDialog from '../components/AboutDialog';
 import WorkstreamModal from '../components/WorkstreamModal';
 import { api } from '../lib/api';
+import { loadDemo, saveDemo, clearDemo, localId, slugify } from '../lib/demoStorage';
 
 export default function App({ mode = 'live' }) {
   const isDemo = mode === 'demo';
-  const [tasks, setTasks] = useState(isDemo ? SEED_TASKS : []);
-  const [agents, setAgents] = useState(isDemo ? SEED_AGENTS : []);
-  const [workstreams, setWorkstreams] = useState(isDemo ? SEED_WORKSTREAMS : {});
+  const [tasks, setTasks] = useState(isDemo ? loadDemo('tasks', SEED_TASKS) : []);
+  const [agents, setAgents] = useState(isDemo ? loadDemo('agents', SEED_AGENTS) : []);
+  const [workstreams, setWorkstreams] = useState(isDemo ? loadDemo('workstreams', SEED_WORKSTREAMS) : {});
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [filterWorkstream, setFilterWorkstream] = useState("all");
@@ -41,30 +42,60 @@ export default function App({ mode = 'live' }) {
       .catch((err) => console.error('load failed', err));
   }, [isDemo]);
 
-  const showDemoAlert = useCallback(() => {
-    if (isDemo) {
-      alert('This is a demo. Clone the repo to run your own Chaos Dimension.');
-      return true;
+  // Persist demo state to localStorage on change.
+  useEffect(() => { if (isDemo) saveDemo('tasks', tasks); }, [isDemo, tasks]);
+  useEffect(() => { if (isDemo) saveDemo('agents', agents); }, [isDemo, agents]);
+  useEffect(() => { if (isDemo) saveDemo('workstreams', workstreams); }, [isDemo, workstreams]);
+
+  const nextWorkstreamId = useCallback((baseLabel, providedId) => {
+    const base = slugify(providedId || baseLabel);
+    if (!base) return null;
+    if (!workstreams[base]) return base;
+    for (let n = 2; n <= 100; n += 1) {
+      const candidate = `${base}-${n}`;
+      if (!workstreams[candidate]) return candidate;
     }
-    return false;
-  }, [isDemo]);
+    return null;
+  }, [workstreams]);
 
   const createWorkstream = useCallback(async (ws) => {
-    if (showDemoAlert()) return;
+    if (isDemo) {
+      const id = nextWorkstreamId(ws.label, ws.id);
+      if (!id) throw new Error('Could not derive a valid id from the label.');
+      const created = { id, label: ws.label, color: ws.color, icon: ws.icon };
+      setWorkstreams(prev => ({ ...prev, [id]: { label: created.label, color: created.color, icon: created.icon } }));
+      return created;
+    }
     const created = await api.createWorkstream(ws);
     setWorkstreams(prev => ({ ...prev, [created.id]: { label: created.label, color: created.color, icon: created.icon } }));
     return created;
-  }, [showDemoAlert]);
+  }, [isDemo, nextWorkstreamId]);
 
   const updateWorkstream = useCallback(async (id, updates) => {
-    if (showDemoAlert()) return;
+    if (isDemo) {
+      setWorkstreams(prev => ({ ...prev, [id]: { ...prev[id], ...updates } }));
+      return { id, ...workstreams[id], ...updates };
+    }
     const updated = await api.updateWorkstream(id, updates);
     setWorkstreams(prev => ({ ...prev, [id]: { label: updated.label, color: updated.color, icon: updated.icon } }));
     return updated;
-  }, [showDemoAlert]);
+  }, [isDemo, workstreams]);
 
   const deleteWorkstream = useCallback(async (id) => {
-    if (showDemoAlert()) return;
+    const referencing = tasks.filter(t => t.workstream === id).length;
+    if (isDemo) {
+      if (referencing > 0) {
+        const msg = `Cannot delete: ${referencing} task${referencing === 1 ? '' : 's'} still in this workstream. Move or delete them first.`;
+        alert(msg);
+        throw new Error(msg);
+      }
+      setWorkstreams(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
     try {
       await api.deleteWorkstream(id);
       setWorkstreams(prev => {
@@ -76,36 +107,38 @@ export default function App({ mode = 'live' }) {
       alert(err.message || 'Could not delete workstream');
       throw err;
     }
-  }, [showDemoAlert]);
+  }, [isDemo, tasks]);
 
   const moveTask = useCallback((taskId, newCol) => {
-    if (showDemoAlert()) return;
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, column: newCol } : t));
-    api.updateTask(taskId, { column: newCol }).catch(console.error);
-  }, [showDemoAlert]);
+    if (!isDemo) api.updateTask(taskId, { column: newCol }).catch(console.error);
+  }, [isDemo]);
 
   const addTask = useCallback(async (task) => {
-    if (showDemoAlert()) return;
+    if (isDemo) {
+      const now = new Date().toISOString();
+      const created = { ...task, id: localId('t'), createdAt: now, updatedAt: now };
+      setTasks(prev => [...prev, created]);
+      setShowAddTask(false);
+      return;
+    }
     const created = await api.createTask(task);
     setTasks(prev => [...prev, created]);
     setShowAddTask(false);
-  }, [showDemoAlert]);
+  }, [isDemo]);
 
   const updateTask = useCallback((taskId, updates) => {
-    if (showDemoAlert()) return;
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
-    api.updateTask(taskId, updates).catch(console.error);
-  }, [showDemoAlert]);
+    if (!isDemo) api.updateTask(taskId, updates).catch(console.error);
+  }, [isDemo]);
 
   const deleteTask = useCallback(async (taskId) => {
-    if (showDemoAlert()) return;
     setTasks(prev => prev.filter(t => t.id !== taskId));
     setEditingTask(null);
-    await api.deleteTask(taskId).catch(console.error);
-  }, [showDemoAlert]);
+    if (!isDemo) await api.deleteTask(taskId).catch(console.error);
+  }, [isDemo]);
 
   const dispatchToAgent = useCallback((taskId) => {
-    if (showDemoAlert()) return;
     const free = agents.find(a => a.status === "idle");
     if (!free) return;
     const task = tasks.find(t => t.id === taskId);
@@ -115,12 +148,11 @@ export default function App({ mode = 'live' }) {
       log: [`[${now}] Dispatched: ${task?.title}`, `[${now}] Loading context...`],
     };
     setAgents(prev => prev.map(a => a.id === free.id ? { ...a, ...updates } : a));
-    api.updateAgent(free.id, updates).catch(console.error);
+    if (!isDemo) api.updateAgent(free.id, updates).catch(console.error);
     moveTask(taskId, "active");
-  }, [agents, tasks, moveTask, showDemoAlert]);
+  }, [agents, tasks, moveTask, isDemo]);
 
   const completeAgent = useCallback((agentId) => {
-    if (showDemoAlert()) return;
     const agent = agents.find(a => a.id === agentId);
     if (agent?.taskId) moveTask(agent.taskId, "review");
     const now = new Date().toLocaleTimeString();
@@ -129,14 +161,22 @@ export default function App({ mode = 'live' }) {
       log: [...(agent?.log ?? []), `[${now}] Task complete`],
     };
     setAgents(prev => prev.map(a => a.id === agentId ? { ...a, ...updates } : a));
-    api.updateAgent(agentId, updates).catch(console.error);
-  }, [agents, moveTask, showDemoAlert]);
+    if (!isDemo) api.updateAgent(agentId, updates).catch(console.error);
+  }, [agents, moveTask, isDemo]);
 
   const resetData = useCallback(() => {
-    if (showDemoAlert()) return;
+    if (isDemo) {
+      if (!window.confirm('Reset the demo back to its initial state? Your local changes will be lost.')) return;
+      clearDemo();
+      setTasks(SEED_TASKS);
+      setAgents(SEED_AGENTS);
+      setWorkstreams(SEED_WORKSTREAMS);
+      return;
+    }
+    if (!window.confirm('Reset all tasks and agents? This cannot be undone.')) return;
     setTasks(SEED_TASKS);
     setAgents(SEED_AGENTS);
-  }, [showDemoAlert]);
+  }, [isDemo]);
 
   const filtered = filterWorkstream === "all" ? tasks : tasks.filter(t => t.workstream === filterWorkstream);
   const stats = {
