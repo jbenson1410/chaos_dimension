@@ -14,6 +14,7 @@ export const tasks = pgTable('tasks', {
   workstream: text('workstream').notNull(),
   column: text('column').notNull(),
   agentDispatchable: boolean('agent_dispatchable').notNull().default(false),
+  remoteRunnable: boolean('remote_runnable').notNull().default(false),
   priority: text('priority').notNull().default('med'),
   notes: text('notes').notNull().default(''),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -27,4 +28,6 @@ export const agents = pgTable('agents', {
   taskId: text('task_id'),
   startedAt: timestamp('started_at'),
   log: jsonb('log').notNull().default([]),
+  hostname: text('hostname'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });

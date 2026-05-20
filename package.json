@@ -12,9 +12,11 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:seed": "node scripts/seed-workstreams.js",
-    "hash-password": "node scripts/hash-password.js"
+    "hash-password": "node scripts/hash-password.js",
+    "mint-api-key": "node scripts/mint-api-key.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@neondatabase/serverless": "^0.10.4",
     "@paralleldrive/cuid2": "^3.3.0",
     "bcryptjs": "^2.4.3",
