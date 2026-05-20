@@ -1,8 +1,8 @@
 # Chaos Dimension
 
-> A note from the author: I wanted a JIRA, but for me. Specifically, a JIRA with a control panel for dispatching coding agents and watching them work. I looked and did not find one. So I built it, and I made it look like a 1991 Macintosh, because if I'm going to stare at a project tracker all day it should at least be fun.
+> A note from the author: I wanted a JIRA, but for me. Specifically, a JIRA with a control panel for dispatching coding agents and watching them work. I looked and did not find one. So I built it, and I started by making it look like a 1991 Macintosh — then I added a few more skins so it could match my mood: a green-on-black terminal for late nights, a quiet Minimal for focus, and a flat Modern for when I'm screen-sharing with someone who didn't grow up with a beige tower.
 
-A retro Mac OS System 7-styled mission control for personal projects and AI agent orchestration. Kanban on the left, agent terminal monitor on the right, blue dither desktop everywhere.
+A themeable mission control for personal projects and AI agent orchestration. Kanban on the left, agent monitor on the right. Four skins: Classic Mac OS (the default), Minimal, Terminal, and Modern.
 
 | Classic Mac OS | Minimal |
 | --- | --- |
@@ -18,7 +18,9 @@ Modern project trackers are bloated, modern UIs are beige, and none of them have
 
 ## Design Choices
 
-System 7 chrome (striped title bars, beveled buttons, inset borders) because constraint breeds taste, and because rounded corners have had their fun. Inline styles, no component library, no Tailwind — the whole point is that it looks deliberately old.
+Four themes, one layout. Classic Mac OS System 7 (the default — striped title bars, beveled buttons, blue dither desktop) for when nostalgia is the feature. Minimal for when you want the chrome to disappear. Terminal for green-on-black late-night hacker mode. Modern for when you're screen-sharing with civilians.
+
+Themes are a theme provider plus CSS-variable-style style objects, not a component library swap — every theme renders the exact same React tree. Inline styles throughout, no Tailwind, no shadcn. The whole point was to prove that a 1991 aesthetic could share a codebase with a 2026 one without either feeling like a compromise.
 
 ## The Name
 
@@ -89,16 +91,9 @@ Lets Claude Code (or any MCP client) read and write your tasks, claim work, and 
 
 4. **(Optional) Enable auto-tracking.** Paste the snippet from `docs/integration/CLAUDE.md.snippet` into a project's `CLAUDE.md` or your global `~/.claude/CLAUDE.md`. Claude will ask before creating tasks for non-trivial work and report progress as it goes.
 
-### Connect Claude Desktop or claude.ai (web)
+### Claude Desktop and claude.ai (web): not yet supported
 
-Same MCP endpoint, different setup UI:
-
-1. **Mint a token** as in step 1 above (or run `npm run mint-api-key -- --label desktop`).
-2. In **Claude Desktop** or **claude.ai**: Settings → Connectors → Add custom connector.
-3. Fill in:
-   - **URL:** `https://www.your-deploy.fyi/api/mcp`
-   - **Authentication:** Bearer token → paste your `cd_...` token
-4. Save. The chaos-dimension tools appear in any new chat.
+The "Add custom connector" dialog in Claude Desktop and claude.ai only accepts OAuth 2.1, not the static bearer tokens the chaos-dimension MCP server currently uses. Adding OAuth support is on the roadmap — until then, use Claude Code.
 
 Full MCP setup details and troubleshooting: see [`docs/integration/README.md`](docs/integration/README.md).
 
@@ -126,6 +121,7 @@ React 18 + Vite frontend. Vercel serverless functions for `/api/*`. Neon Postgre
 - [x] Multi-theme system (Classic / Minimal / Terminal / Modern)
 - [x] Interactive demo board with localStorage persistence
 - [x] MCP server (v0.4) — Claude Code claims and updates tasks via standard MCP tools
+- [ ] OAuth 2.1 + dynamic client registration on `/api/mcp` so Claude Desktop and claude.ai web can connect
 - [ ] AIM Messenger-style chat panel that routes to the Anthropic API
 - [ ] Settings → API Keys management UI (currently CLI-only)
 - [ ] Cloud orchestrator: ephemeral containers that run agent tasks while your laptop is closed
