@@ -1,19 +1,26 @@
-const FONT = `'Courier New', 'Menlo', monospace`;
+// Terminal theme — tuned to feel like a real terminal (Tomorrow Night-ish
+// palette with muted sage green and magenta accents, soft cream text on
+// dark gray). Not the aggressive neon-on-black hacker movie look.
+const FONT = `'JetBrains Mono', 'SF Mono', 'Menlo', 'Courier New', monospace`;
 
 const colors = {
-  bg: '#0A0A0A',
-  windowBg: '#000000',
-  chrome: '#000000',
-  chromeDark: '#00FF00',
-  chromeLight: '#0F1F0F',
-  border: '#00FF00',
-  text: '#00FF00',
-  textDim: '#008800',
-  highlight: '#00FF00',
-  highlightText: '#000000',
-  scrollbar: '#00FF00',
-  titleStripes: '#00FF00',
+  bg: '#2B2B2B',
+  windowBg: '#2B2B2B',
+  chrome: '#363636',
+  chromeDark: '#5C5C5C',
+  chromeLight: '#3A3A3A',
+  border: '#4A4A4A',
+  text: '#E0DCC8',
+  textDim: '#8B8675',
+  highlight: '#A0BD68',
+  highlightText: '#1F1F1F',
+  scrollbar: '#5C5C5C',
+  titleStripes: '#4A4A4A',
 };
+
+const ACCENT = '#A0BD68';        // muted sage (status, success)
+const ACCENT_ALT = '#D08CDB';    // magenta-pink (prompts, links)
+const SELECTION_BG = '#5A6936';  // dark olive for selection
 
 const GLOBAL_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -21,31 +28,31 @@ const GLOBAL_CSS = `
     font-family: ${FONT};
     font-size: 13px;
     overflow: hidden;
-    background: #000;
-    color: #00FF00;
+    background: ${colors.bg};
+    color: ${colors.text};
   }
-  ::-webkit-scrollbar { width: 12px; }
-  ::-webkit-scrollbar-track { background: #000; border-left: 1px solid #00FF00; }
-  ::-webkit-scrollbar-thumb { background: #00FF00; border: 2px solid #000; }
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: ${colors.bg}; }
+  ::-webkit-scrollbar-thumb { background: ${colors.chromeDark}; border-radius: 0; }
+  ::-webkit-scrollbar-thumb:hover { background: ${colors.text}; }
   .mac-btn {
     font-family: ${FONT};
-    font-size: 13px;
-    padding: 3px 12px;
+    font-size: 12px;
+    padding: 4px 10px;
     border-radius: 0;
-    border: 1px solid #00FF00;
-    background: #000;
-    color: #00FF00;
+    border: 1px solid ${colors.chromeDark};
+    background: ${colors.chrome};
+    color: ${colors.text};
     cursor: pointer;
   }
-  .mac-btn::before { content: '['; margin-right: 4px; }
-  .mac-btn::after { content: ']'; margin-left: 4px; }
-  .mac-btn:hover { background: #002200; }
-  .mac-btn:active { background: #00FF00; color: #000; }
-  .mac-btn-primary { background: #00FF00; color: #000; }
-  .mac-btn-primary:hover { background: #00DD00; }
-  .task-card { color: #00FF00 !important; }
-  .task-card:hover { background: #001A00 !important; }
-  .col-drop-active { background: #001A00 !important; outline: 1px dashed #00FF00; }
+  .mac-btn:hover { background: ${colors.chromeLight}; border-color: ${ACCENT}; color: ${ACCENT}; }
+  .mac-btn:active { background: ${ACCENT}; color: ${colors.highlightText}; border-color: ${ACCENT}; }
+  .mac-btn-primary { background: ${ACCENT}; color: ${colors.highlightText}; border-color: ${ACCENT}; }
+  .mac-btn-primary:hover { background: #B8D080; border-color: #B8D080; color: ${colors.highlightText}; }
+  .task-card { color: ${colors.text} !important; }
+  .task-card:hover { background: ${SELECTION_BG} !important; color: ${colors.text} !important; }
+  .col-drop-active { background: ${SELECTION_BG} !important; }
+  ::selection { background: ${SELECTION_BG}; color: ${colors.text}; }
   @keyframes blink { 50% { opacity: 0; } }
 `;
 
@@ -57,59 +64,59 @@ const theme = {
   desktopBgImage: 'none',
   desktopBgSize: 'auto',
   titleBarBgImage: 'none',
-  titleBarBg: '#001100',
+  titleBarBg: '#1F1F1F',
   titleTextBg: 'transparent',
-  titleTextColor: '#00FF00',
-  windowBorder: '1px solid #00FF00',
-  windowShadow: '0 0 8px rgba(0,255,0,0.2)',
-  cardBorder: '1px dashed #00FF00',
-  cardBg: '#000000',
-  cardHoverBg: '#001A00',
+  titleTextColor: ACCENT_ALT,
+  windowBorder: `1px solid ${colors.border}`,
+  windowShadow: '0 2px 8px rgba(0,0,0,0.4)',
+  cardBorder: `1px solid ${colors.chromeDark}`,
+  cardBg: colors.chrome,
+  cardHoverBg: SELECTION_BG,
   desktop: {
     minHeight: '100vh',
-    background: '#000',
+    background: colors.bg,
     fontFamily: FONT,
     fontSize: 13,
-    color: '#00FF00',
+    color: colors.text,
   },
   window: {
-    background: '#000',
-    border: '1px solid #00FF00',
-    boxShadow: '0 0 8px rgba(0,255,0,0.2)',
+    background: colors.chrome,
+    border: `1px solid ${colors.border}`,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
   },
   titleBar: {
     height: 22,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingLeft: 8,
-    borderBottom: '1px dashed #00FF00',
-    fontWeight: 'bold',
-    fontSize: 12,
-    background: '#001100',
-    color: '#00FF00',
+    paddingLeft: 10,
+    borderBottom: `1px solid ${colors.border}`,
+    fontWeight: 'normal',
+    fontSize: 11,
+    background: '#1F1F1F',
+    color: ACCENT_ALT,
   },
   input: {
     width: '100%',
-    padding: '4px 6px',
+    padding: '5px 8px',
     fontSize: 13,
     fontFamily: FONT,
-    border: '1px solid #00FF00',
-    background: '#000',
-    color: '#00FF00',
+    border: `1px solid ${colors.chromeDark}`,
+    background: colors.bg,
+    color: colors.text,
   },
   button: {
     fontFamily: FONT,
-    fontSize: 13,
-    padding: '3px 12px',
+    fontSize: 12,
+    padding: '4px 10px',
     borderRadius: 0,
-    border: '1px solid #00FF00',
-    background: '#000',
-    color: '#00FF00',
+    border: `1px solid ${colors.chromeDark}`,
+    background: colors.chrome,
+    color: colors.text,
     cursor: 'pointer',
   },
   link: {
-    color: '#00FF00',
+    color: ACCENT_ALT,
     textDecoration: 'underline',
     fontFamily: FONT,
     fontSize: 13,
