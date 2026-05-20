@@ -1,0 +1,34 @@
+import { eq } from 'drizzle-orm';
+import { oauthRateLimits } from '../db/schema.js';
+
+export async function checkRateLimit(db, { bucket, limit, windowSeconds }) {
+  const rows = await db
+    .select()
+    .from(oauthRateLimits)
+    .where(eq(oauthRateLimits.bucket, bucket))
+    .limit(1);
+
+  const now = new Date();
+  if (!rows.length) {
+    await db.insert(oauthRateLimits).values({ bucket, windowStart: now, count: 1 }).returning();
+    return { allowed: true };
+  }
+
+  const row = rows[0];
+  const windowAge = (now.getTime() - new Date(row.windowStart).getTime()) / 1000;
+  if (windowAge >= windowSeconds) {
+    await db.update(oauthRateLimits).set({ windowStart: now, count: 1 }).where(eq(oauthRateLimits.id, row.id));
+    return { allowed: true };
+  }
+
+  if (row.count >= limit) return { allowed: false, retryAfter: Math.ceil(windowSeconds - windowAge) };
+
+  await db.update(oauthRateLimits).set({ count: row.count + 1 }).where(eq(oauthRateLimits.id, row.id));
+  return { allowed: true };
+}
+
+export function ipBucket(name, req) {
+  const fwd = req.headers?.['x-forwarded-for'] || '';
+  const ip = String(fwd).split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+  return `${name}:${ip}`;
+}
