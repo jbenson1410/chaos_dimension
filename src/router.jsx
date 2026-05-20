@@ -4,6 +4,7 @@ import Landing from './pages/Landing';
 import About from './pages/About';
 import Login from './pages/Login';
 import App from './pages/App';
+import OauthConsent from './pages/OauthConsent';
 import { api } from './lib/api';
 
 const PUBLIC_DEMO = import.meta.env.VITE_PUBLIC_DEMO === 'true';
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
   { path: '/about', element: <About /> },
   { path: '/login', element: <Login /> },
   { path: '/app', element: <ProtectedApp /> },
+  { path: '/oauth/consent', element: <OauthConsent /> },
 ]);
 
 export function Router() {
