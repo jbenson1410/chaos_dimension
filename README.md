@@ -4,7 +4,11 @@
 
 A retro Mac OS System 7-styled mission control for personal projects and AI agent orchestration. Kanban on the left, agent terminal monitor on the right, blue dither desktop everywhere.
 
-![Chaos Dimension demo board](screenshots/demo.png)
+| Classic Mac OS | Minimal |
+| --- | --- |
+| ![Classic Mac OS theme](screenshots/theme-classic.png) | ![Minimal theme](screenshots/theme-minimal.png) |
+| **Terminal** | **Modern** |
+| ![Terminal theme](screenshots/theme-terminal.png) | ![Modern theme](screenshots/theme-modern.png) |
 
 Live demo: [chaosdimension.fyi](https://chaosdimension.fyi)
 
@@ -84,6 +88,17 @@ Lets Claude Code (or any MCP client) read and write your tasks, claim work, and 
    You should see `chaos-dimension` connected with 7 tools (`list_workstreams`, `list_tasks`, `get_task`, `create_task`, `update_task`, `claim_task`, `report_progress`).
 
 4. **(Optional) Enable auto-tracking.** Paste the snippet from `docs/integration/CLAUDE.md.snippet` into a project's `CLAUDE.md` or your global `~/.claude/CLAUDE.md`. Claude will ask before creating tasks for non-trivial work and report progress as it goes.
+
+### Connect Claude Desktop or claude.ai (web)
+
+Same MCP endpoint, different setup UI:
+
+1. **Mint a token** as in step 1 above (or run `npm run mint-api-key -- --label desktop`).
+2. In **Claude Desktop** or **claude.ai**: Settings → Connectors → Add custom connector.
+3. Fill in:
+   - **URL:** `https://www.your-deploy.fyi/api/mcp`
+   - **Authentication:** Bearer token → paste your `cd_...` token
+4. Save. The chaos-dimension tools appear in any new chat.
 
 Full MCP setup details and troubleshooting: see [`docs/integration/README.md`](docs/integration/README.md).
 
