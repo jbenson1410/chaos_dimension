@@ -29,6 +29,7 @@ async function defaultLookupOauthAccessToken(db, token) {
       expiresAt: oauthAccessTokens.expiresAt,
       revokedAt: oauthAccessTokens.revokedAt,
       clientName: oauthClients.name,
+      clientRowId: oauthClients.id,
       agentId: oauthClients.agentId,
     })
     .from(oauthAccessTokens)
@@ -39,8 +40,18 @@ async function defaultLookupOauthAccessToken(db, token) {
   const r = rows[0];
   if (r.revokedAt) return null;
   if (new Date(r.expiresAt).getTime() < Date.now()) return null;
+
+  // Lazily provision a synthetic agent row the first time this client is used.
+  // Subsequent calls hit the warm agent_id on oauth_clients.
+  let agentId = r.agentId;
+  if (!agentId) {
+    const [created] = await db.insert(agents).values({ name: r.clientName, status: 'idle' }).returning();
+    agentId = created.id;
+    await db.update(oauthClients).set({ agentId }).where(eq(oauthClients.id, r.clientRowId));
+  }
+
   db.update(oauthAccessTokens).set({ lastUsedAt: new Date() }).where(eq(oauthAccessTokens.id, r.tokenId)).catch(() => {});
-  return { clientId: r.clientId, clientName: r.clientName, agentId: r.agentId };
+  return { clientId: r.clientId, clientName: r.clientName, agentId };
 }
 
 export async function authenticateBearer(req, ctx = {}) {
