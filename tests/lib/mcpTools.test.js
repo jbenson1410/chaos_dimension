@@ -43,7 +43,7 @@ function makeFakeDb({ workstreams = [], tasks = [], agents = [] } = {}) {
 }
 
 describe('mcpTools registry', () => {
-  it.skip('exposes the v1 tools', () => {
+  it('exposes the v1 tools', () => {
     const names = TOOLS.map(t => t.name);
     expect(names).toEqual(
       expect.arrayContaining([
