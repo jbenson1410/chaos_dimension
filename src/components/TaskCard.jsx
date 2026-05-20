@@ -1,8 +1,7 @@
-import { WORKSTREAMS } from '../data/workstreams';
 import { MAC } from '../styles/mac';
 
-export default function TaskCard({ task, agents, setDragState, onEdit, onDispatch }) {
-  const ws = WORKSTREAMS[task.workstream];
+export default function TaskCard({ task, agents, workstreams, setDragState, onEdit, onDispatch }) {
+  const ws = workstreams?.[task.workstream] ?? { color: '#999', label: task.workstream, icon: '•' };
   const agentAssigned = agents.find(a => a.taskId === task.id);
   const priorityMark = { high: "●", med: "◐", low: "○" };
 

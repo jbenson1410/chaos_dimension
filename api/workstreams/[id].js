@@ -1,0 +1,46 @@
+import { getDb } from '../../src/db/client.js';
+import { workstreams, tasks } from '../../src/db/schema.js';
+import { requireAuth } from '../../src/lib/requireAuth.js';
+import { eq } from 'drizzle-orm';
+
+const ALLOWED_FIELDS = ['label', 'color', 'icon'];
+
+export default async function handle(req, res) {
+  const session = await requireAuth(req, res);
+  if (!session) return;
+
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: 'id required' });
+
+  const db = getDb();
+
+  if (req.method === 'PATCH') {
+    const updates = {};
+    for (const k of ALLOWED_FIELDS) {
+      if (k in (req.body ?? {})) updates[k] = req.body[k];
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'no fields to update' });
+    }
+    const [row] = await db.update(workstreams).set(updates).where(eq(workstreams.id, id)).returning();
+    if (!row) return res.status(404).json({ error: 'not found' });
+    return res.status(200).json(row);
+  }
+
+  if (req.method === 'DELETE') {
+    const referencing = await db.select().from(tasks).where(eq(tasks.workstream, id));
+    if (referencing.length > 0) {
+      return res.status(409).json({
+        error: 'workstream in use',
+        message: `Cannot delete: ${referencing.length} task${referencing.length === 1 ? '' : 's'} still in this workstream. Move or delete them first.`,
+        taskCount: referencing.length,
+      });
+    }
+    const [row] = await db.delete(workstreams).where(eq(workstreams.id, id)).returning();
+    if (!row) return res.status(404).json({ error: 'not found' });
+    return res.status(200).json({ ok: true });
+  }
+
+  res.setHeader('Allow', 'PATCH, DELETE');
+  return res.status(405).json({ error: 'method not allowed' });
+}

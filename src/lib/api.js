@@ -23,4 +23,8 @@ export const api = {
   deleteTask: (id) => request(`/api/tasks/${id}`, { method: 'DELETE' }),
   listAgents: () => request('/api/agents'),
   updateAgent: (id, updates) => request(`/api/agents/${id}`, { method: 'PATCH', body: updates }),
+  listWorkstreams: () => request('/api/workstreams'),
+  createWorkstream: (ws) => request('/api/workstreams', { method: 'POST', body: ws }),
+  updateWorkstream: (id, updates) => request(`/api/workstreams/${id}`, { method: 'PATCH', body: updates }),
+  deleteWorkstream: (id) => request(`/api/workstreams/${id}`, { method: 'DELETE' }),
 };

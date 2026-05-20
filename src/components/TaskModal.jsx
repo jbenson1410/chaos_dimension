@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { WORKSTREAMS, COLUMNS, COL_LABELS } from '../data/workstreams';
+import { COLUMNS, COL_LABELS } from '../data/workstreams';
 import { MAC, FONT } from '../styles/mac';
 
-export default function TaskModal({ task, onSave, onClose, onDelete }) {
+export default function TaskModal({ task, workstreams = {}, onSave, onClose, onDelete }) {
+  const wsKeys = Object.keys(workstreams);
+  const defaultWs = task?.workstream || wsKeys[0] || 'general';
   const [title, setTitle] = useState(task?.title || "");
-  const [workstream, setWorkstream] = useState(task?.workstream || "second-seat");
+  const [workstream, setWorkstream] = useState(defaultWs);
   const [priority, setPriority] = useState(task?.priority || "med");
   const [notes, setNotes] = useState(task?.notes || "");
   const [agentDispatchable, setAgentDispatchable] = useState(task?.agentDispatchable ?? true);
@@ -58,7 +60,7 @@ export default function TaskModal({ task, onSave, onClose, onDelete }) {
 
           <label style={labelStyle}>Workstream</label>
           <select value={workstream} onChange={e => setWorkstream(e.target.value)} style={inputStyle}>
-            {Object.entries(WORKSTREAMS).map(([k, v]) => (
+            {Object.entries(workstreams).map(([k, v]) => (
               <option key={k} value={k}>{v.icon} {v.label}</option>
             ))}
           </select>

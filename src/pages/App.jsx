@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MAC, GLOBAL_CSS } from '../styles/mac';
-import { WORKSTREAMS, COLUMNS, COL_LABELS } from '../data/workstreams';
+import { WORKSTREAMS as SEED_WORKSTREAMS, COLUMNS, COL_LABELS } from '../data/workstreams';
 import { SEED_TASKS, SEED_AGENTS } from '../data/seed';
 import MacWindow from '../components/MacWindow';
 import { MenuBar, MenuBarItem, MenuDropdown, FilterPill } from '../components/MenuBar';
@@ -8,12 +8,14 @@ import TaskCard from '../components/TaskCard';
 import TaskModal from '../components/TaskModal';
 import AgentCard from '../components/AgentCard';
 import AboutDialog from '../components/AboutDialog';
+import WorkstreamModal from '../components/WorkstreamModal';
 import { api } from '../lib/api';
 
 export default function App({ mode = 'live' }) {
   const isDemo = mode === 'demo';
   const [tasks, setTasks] = useState(isDemo ? SEED_TASKS : []);
   const [agents, setAgents] = useState(isDemo ? SEED_AGENTS : []);
+  const [workstreams, setWorkstreams] = useState(isDemo ? SEED_WORKSTREAMS : {});
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [filterWorkstream, setFilterWorkstream] = useState("all");
@@ -21,6 +23,7 @@ export default function App({ mode = 'live' }) {
   const [clock, setClock] = useState(new Date());
   const [activeMenu, setActiveMenu] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
+  const [showWorkstreams, setShowWorkstreams] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 60000);
@@ -29,8 +32,12 @@ export default function App({ mode = 'live' }) {
 
   useEffect(() => {
     if (isDemo) return;
-    Promise.all([api.listTasks(), api.listAgents()])
-      .then(([t, a]) => { setTasks(t); setAgents(a); })
+    Promise.all([api.listTasks(), api.listAgents(), api.listWorkstreams()])
+      .then(([t, a, ws]) => {
+        setTasks(t);
+        setAgents(a);
+        setWorkstreams(Object.fromEntries(ws.map(w => [w.id, { label: w.label, color: w.color, icon: w.icon }])));
+      })
       .catch((err) => console.error('load failed', err));
   }, [isDemo]);
 
@@ -41,6 +48,35 @@ export default function App({ mode = 'live' }) {
     }
     return false;
   }, [isDemo]);
+
+  const createWorkstream = useCallback(async (ws) => {
+    if (showDemoAlert()) return;
+    const created = await api.createWorkstream(ws);
+    setWorkstreams(prev => ({ ...prev, [created.id]: { label: created.label, color: created.color, icon: created.icon } }));
+    return created;
+  }, [showDemoAlert]);
+
+  const updateWorkstream = useCallback(async (id, updates) => {
+    if (showDemoAlert()) return;
+    const updated = await api.updateWorkstream(id, updates);
+    setWorkstreams(prev => ({ ...prev, [id]: { label: updated.label, color: updated.color, icon: updated.icon } }));
+    return updated;
+  }, [showDemoAlert]);
+
+  const deleteWorkstream = useCallback(async (id) => {
+    if (showDemoAlert()) return;
+    try {
+      await api.deleteWorkstream(id);
+      setWorkstreams(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err) {
+      alert(err.message || 'Could not delete workstream');
+      throw err;
+    }
+  }, [showDemoAlert]);
 
   const moveTask = useCallback((taskId, newCol) => {
     if (showDemoAlert()) return;
@@ -133,6 +169,7 @@ export default function App({ mode = 'live' }) {
           {activeMenu === "file" && (
             <MenuDropdown items={[
               { label: "New Task", shortcut: "⌘N", action: () => { setShowAddTask(true); setActiveMenu(null); } },
+              { label: "Manage Workstreams...", action: () => { setShowWorkstreams(true); setActiveMenu(null); } },
               { divider: true },
               { label: "Reset All Data...", action: () => { resetData(); setActiveMenu(null); } },
             ]} />
@@ -143,7 +180,7 @@ export default function App({ mode = 'live' }) {
             <MenuDropdown items={[
               { label: "All Workstreams", checked: filterWorkstream === "all", action: () => { setFilterWorkstream("all"); setActiveMenu(null); } },
               { divider: true },
-              ...Object.entries(WORKSTREAMS).map(([k, v]) => ({
+              ...Object.entries(workstreams).map(([k, v]) => ({
                 label: `${v.icon} ${v.label}`, checked: filterWorkstream === k,
                 action: () => { setFilterWorkstream(k); setActiveMenu(null); },
               })),
@@ -180,7 +217,7 @@ export default function App({ mode = 'live' }) {
             </button>
             <div style={{ width: 1, height: 16, background: MAC.chromeDark, margin: "0 4px" }} />
             <FilterPill label="All" active={filterWorkstream === "all"} onClick={() => setFilterWorkstream("all")} />
-            {Object.entries(WORKSTREAMS).map(([k, v]) => (
+            {Object.entries(workstreams).map(([k, v]) => (
               <FilterPill key={k} label={v.icon} title={v.label} active={filterWorkstream === k} onClick={() => setFilterWorkstream(k)} />
             ))}
             <div style={{ flex: 1 }} />
@@ -222,6 +259,7 @@ export default function App({ mode = 'live' }) {
                   {filtered.filter(t => t.column === col).map(task => (
                     <TaskCard
                       key={task.id} task={task} agents={agents}
+                      workstreams={workstreams}
                       setDragState={setDragState}
                       onEdit={() => setEditingTask(task)}
                       onDispatch={() => dispatchToAgent(task.id)}
@@ -250,7 +288,7 @@ export default function App({ mode = 'live' }) {
         {/* ══════ PROGRESS WINDOW ══════ */}
         <MacWindow title="Workstream Progress" x="55%" y="calc(60% + 8px)" w="calc(45% - 8px)" h="calc(40% - 12px)">
           <div style={{ padding: 10 }}>
-            {Object.entries(WORKSTREAMS).map(([key, ws]) => {
+            {Object.entries(workstreams).map(([key, ws]) => {
               const wt = tasks.filter(t => t.workstream === key);
               const done = wt.filter(t => t.column === "done").length;
               const active = wt.filter(t => t.column === "active").length;
@@ -283,16 +321,26 @@ export default function App({ mode = 'live' }) {
       </div>
 
       {/* ══════ MODALS ══════ */}
-      {showAddTask && <TaskModal onSave={addTask} onClose={() => setShowAddTask(false)} />}
+      {showAddTask && <TaskModal workstreams={workstreams} onSave={addTask} onClose={() => setShowAddTask(false)} />}
       {editingTask && (
         <TaskModal
           task={editingTask}
+          workstreams={workstreams}
           onSave={(u) => { updateTask(editingTask.id, u); setEditingTask(null); }}
           onClose={() => setEditingTask(null)}
           onDelete={() => deleteTask(editingTask.id)}
         />
       )}
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+      {showWorkstreams && (
+        <WorkstreamModal
+          workstreams={workstreams}
+          onCreate={createWorkstream}
+          onUpdate={updateWorkstream}
+          onDelete={deleteWorkstream}
+          onClose={() => setShowWorkstreams(false)}
+        />
+      )}
     </div>
   );
 }
