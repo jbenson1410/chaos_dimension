@@ -36,13 +36,28 @@ export default function App({ mode = 'live' }) {
 
   useEffect(() => {
     if (isDemo) return;
-    Promise.all([api.listTasks(), api.listAgents(), api.listWorkstreams()])
-      .then(([t, a, ws]) => {
-        setTasks(t);
-        setAgents(a);
-        setWorkstreams(Object.fromEntries(ws.map(w => [w.id, { label: w.label, color: w.color, icon: w.icon }])));
-      })
-      .catch((err) => console.error('load failed', err));
+
+    const fetchAll = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      Promise.all([api.listTasks(), api.listAgents(), api.listWorkstreams()])
+        .then(([t, a, ws]) => {
+          setTasks(t);
+          setAgents(a);
+          setWorkstreams(Object.fromEntries(ws.map(w => [w.id, { label: w.label, color: w.color, icon: w.icon }])));
+        })
+        .catch((err) => console.error('refresh failed', err));
+    };
+
+    fetchAll();
+    const interval = setInterval(fetchAll, 10000);
+
+    const onVisibility = () => { if (!document.hidden) fetchAll(); };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [isDemo]);
 
   // Persist demo state to localStorage on change.

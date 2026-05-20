@@ -59,25 +59,61 @@ For a fuller local run including the serverless `/api/*` handlers, install the V
 6. Pull the env locally and migrate: `vercel env pull && npm run db:push && npm run db:seed`.
 7. Deploy.
 
+### Connect Claude Code via MCP
+
+Lets Claude Code (or any MCP client) read and write your tasks, claim work, and report progress from inside any coding session.
+
+1. **Mint an API token** from a clone of this repo:
+   ```bash
+   npm run mint-api-key -- --label macbook
+   ```
+   The script prints a `cd_...` token. Copy it. (Token is shown once.)
+
+2. **Register the MCP server with Claude Code**:
+   ```bash
+   claude mcp add --scope user --transport http chaos-dimension \
+     https://www.your-deploy.fyi/api/mcp \
+     --header "Authorization: Bearer cd_paste-your-token-here"
+   ```
+   The `--scope user` flag makes the server available from any project directory. Drop it for project-scoped.
+
+3. **Restart Claude Code**, then inside it run:
+   ```
+   /mcp
+   ```
+   You should see `chaos-dimension` connected with 7 tools (`list_workstreams`, `list_tasks`, `get_task`, `create_task`, `update_task`, `claim_task`, `report_progress`).
+
+4. **(Optional) Enable auto-tracking.** Paste the snippet from `docs/integration/CLAUDE.md.snippet` into a project's `CLAUDE.md` or your global `~/.claude/CLAUDE.md`. Claude will ask before creating tasks for non-trivial work and report progress as it goes.
+
+Full MCP setup details and troubleshooting: see [`docs/integration/README.md`](docs/integration/README.md).
+
+> **Note:** if your deploy's apex domain redirects to `www`, use the `www.` URL in step 2. MCP clients don't follow POST redirects and you'll see `JSON Parse error: Unrecognized token '<'`.
+
 ## Features
 
 - Kanban board: Backlog → Active → Review → Done
 - Agent Monitor with green-on-black terminal logs per agent
 - Workstream color-coding with striped progress bars
-- ⚡ markers on agent-dispatchable tasks (some work is still for humans)
-- Password-gated private mode + optional public demo landing
+- ⚡ markers on agent-dispatchable tasks
+- Password-gated private mode + optional public demo landing (interactive, localStorage-backed)
+- MCP server: connect Claude Code; tasks update from inside your coding sessions
+- Four themes (Classic Mac OS, Minimal, Terminal, Modern)
+- Live dashboard updates (polls every 10s when the tab is visible)
 
 ## Stack
 
-React 18 + Vite frontend. Vercel serverless functions for `/api/*`. Neon Postgres + Drizzle ORM for persistence. `iron-session` + bcryptjs for the single-user password gate.
+React 18 + Vite frontend. Vercel serverless functions for `/api/*`. Neon Postgres + Drizzle ORM for persistence. `iron-session` + bcryptjs for the single-user password gate. `@modelcontextprotocol/sdk` for the MCP server.
 
 ## Roadmap
 
 - [x] Database (Postgres via Neon)
 - [x] Sign-on screen, Mac OS login dialog style
-- [ ] Agent connection v1: file-based, via Claude Code post-task hooks
-- [ ] Agent connection v2: Anthropic API dispatch with streamed terminal output
-- [ ] Agent connection v3: MCP server so any agent can report back
+- [x] Multi-theme system (Classic / Minimal / Terminal / Modern)
+- [x] Interactive demo board with localStorage persistence
+- [x] MCP server (v0.4) — Claude Code claims and updates tasks via standard MCP tools
+- [ ] AIM Messenger-style chat panel that routes to the Anthropic API
+- [ ] Settings → API Keys management UI (currently CLI-only)
+- [ ] Cloud orchestrator: ephemeral containers that run agent tasks while your laptop is closed
 - [ ] Worklog export for blog posts
 
 ## Contributing
