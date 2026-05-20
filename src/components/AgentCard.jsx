@@ -1,11 +1,13 @@
-import { MAC } from '../styles/mac';
+import { useTheme } from '../themes';
 
 export default function AgentCard({ agent, task, onComplete }) {
+  const { theme: MAC } = useTheme();
   return (
     <div style={{
       borderBottom: `1px solid ${MAC.chromeDark}`,
       padding: 8,
       flex: agent.status === "running" ? 2 : 1,
+      color: MAC.text,
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

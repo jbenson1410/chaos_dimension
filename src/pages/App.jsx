@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MAC, GLOBAL_CSS } from '../styles/mac';
 import { WORKSTREAMS as SEED_WORKSTREAMS, COLUMNS, COL_LABELS } from '../data/workstreams';
 import { SEED_TASKS, SEED_AGENTS } from '../data/seed';
 import MacWindow from '../components/MacWindow';
@@ -11,8 +10,12 @@ import AboutDialog from '../components/AboutDialog';
 import WorkstreamModal from '../components/WorkstreamModal';
 import { api } from '../lib/api';
 import { loadDemo, saveDemo, clearDemo, localId, slugify } from '../lib/demoStorage';
+import { useTheme, THEME_LIST } from '../themes';
 
 export default function App({ mode = 'live' }) {
+  const { theme, themeId, setThemeId } = useTheme();
+  const MAC = theme;
+  const GLOBAL_CSS = theme.GLOBAL_CSS;
   const isDemo = mode === 'demo';
   const [tasks, setTasks] = useState(isDemo ? loadDemo('tasks', SEED_TASKS) : []);
   const [agents, setAgents] = useState(isDemo ? loadDemo('agents', SEED_AGENTS) : []);
@@ -234,14 +237,23 @@ export default function App({ mode = 'live' }) {
             }))} />
           )}
         </MenuBarItem>
+        <MenuBarItem label="Theme" active={activeMenu === "theme"} onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "theme" ? null : "theme"); }}>
+          {activeMenu === "theme" && (
+            <MenuDropdown items={THEME_LIST.map(t => ({
+              label: t.label, checked: themeId === t.id,
+              action: () => { setThemeId(t.id); setActiveMenu(null); },
+            }))} />
+          )}
+        </MenuBarItem>
       </MenuBar>
 
       {/* ══════ DESKTOP ══════ */}
       <div style={{
         flex: 1, position: "relative", overflow: "hidden",
         background: MAC.bg,
-        backgroundImage: "repeating-conic-gradient(#5070B8 0% 25%, transparent 0% 50%)",
-        backgroundSize: "4px 4px",
+        backgroundImage: MAC.desktopBgImage,
+        backgroundSize: MAC.desktopBgSize,
+        color: MAC.text,
       }}>
 
         {/* ══════ MAIN KANBAN WINDOW ══════ */}

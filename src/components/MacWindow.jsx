@@ -1,45 +1,61 @@
-import { MAC } from '../styles/mac';
+import { useTheme } from '../themes';
 
 export default function MacWindow({ title, children, x, y, w, h }) {
+  const { theme } = useTheme();
   return (
     <div style={{
       position: "absolute", left: x, top: y, width: w, height: h,
       display: "flex", flexDirection: "column",
-      border: `2px solid ${MAC.border}`,
-      boxShadow: "2px 2px 0 rgba(0,0,0,0.3)",
-      background: MAC.windowBg,
+      border: theme.windowBorder,
+      boxShadow: theme.windowShadow || "2px 2px 0 rgba(0,0,0,0.3)",
+      background: theme.windowBg,
+      borderRadius: theme.window.borderRadius || 0,
+      overflow: "hidden",
     }}>
-      {/* Title Bar */}
       <div style={{
-        height: 20, display: "flex", alignItems: "center", padding: "0 4px",
-        background: MAC.chrome, borderBottom: `1px solid ${MAC.border}`, flexShrink: 0,
-        backgroundImage: `repeating-linear-gradient(
-          transparent 0px, transparent 1px,
-          ${MAC.titleStripes} 1px, ${MAC.titleStripes} 2px,
-          transparent 2px, transparent 3px
-        )`,
+        height: theme.titleBar.height || 20,
+        display: "flex",
+        alignItems: "center",
+        padding: "0 4px",
+        background: theme.titleBarBg,
+        borderBottom: theme.titleBar.borderBottom || `1px solid ${theme.border}`,
+        flexShrink: 0,
+        backgroundImage: theme.titleBarBgImage,
+        color: theme.titleTextColor,
+        fontWeight: theme.titleBar.fontWeight || 'bold',
+        fontSize: theme.titleBar.fontSize || 11,
+        textTransform: theme.titleBar.textTransform || 'none',
+        letterSpacing: theme.titleBar.letterSpacing || 'normal',
       }}>
+        {theme.id === 'classic' && (
+          <div style={{
+            width: 12, height: 12, border: `1px solid ${theme.border}`, background: theme.chrome,
+            marginRight: 6, flexShrink: 0,
+          }} />
+        )}
         <div style={{
-          width: 12, height: 12, border: `1px solid ${MAC.border}`, background: MAC.chrome,
-          marginRight: 6, flexShrink: 0,
-        }} />
-        <div style={{
-          flex: 1, textAlign: "center", fontWeight: "bold", fontSize: 11,
-          background: MAC.chrome, padding: "0 8px", whiteSpace: "nowrap",
+          flex: 1,
+          textAlign: theme.id === 'classic' ? "center" : "left",
+          fontWeight: "bold",
+          fontSize: theme.titleBar.fontSize || 11,
+          background: theme.titleTextBg,
+          color: theme.titleTextColor,
+          padding: theme.id === 'classic' ? "0 8px" : "0",
+          whiteSpace: "nowrap",
         }}>
-          {title}
+          {theme.id === 'terminal' ? `── ${title} ──` : title}
         </div>
-        <div style={{ width: 12, flexShrink: 0 }} />
+        {theme.id === 'classic' && <div style={{ width: 12, flexShrink: 0 }} />}
       </div>
-      {/* Content */}
       <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
         {children}
       </div>
-      {/* Resize Handle */}
-      <div style={{
-        position: "absolute", bottom: 0, right: 0, width: 16, height: 16,
-        backgroundImage: `linear-gradient(135deg, transparent 50%, ${MAC.chromeDark} 50%, ${MAC.chromeDark} 55%, transparent 55%, transparent 65%, ${MAC.chromeDark} 65%, ${MAC.chromeDark} 70%, transparent 70%, transparent 80%, ${MAC.chromeDark} 80%, ${MAC.chromeDark} 85%, transparent 85%)`,
-      }} />
+      {theme.id === 'classic' && (
+        <div style={{
+          position: "absolute", bottom: 0, right: 0, width: 16, height: 16,
+          backgroundImage: `linear-gradient(135deg, transparent 50%, ${theme.chromeDark} 50%, ${theme.chromeDark} 55%, transparent 55%, transparent 65%, ${theme.chromeDark} 65%, ${theme.chromeDark} 70%, transparent 70%, transparent 80%, ${theme.chromeDark} 80%, ${theme.chromeDark} 85%, transparent 85%)`,
+        }} />
+      )}
     </div>
   );
 }
