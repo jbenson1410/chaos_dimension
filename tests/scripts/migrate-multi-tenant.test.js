@@ -40,4 +40,15 @@ describeMaybe('migrate-multi-tenant', () => {
     const enabled = result.rows?.[0]?.rowsecurity ?? result[0]?.rowsecurity;
     expect(enabled).toBe(true);
   }, 30000);
+
+  it('forces RLS on tasks (applies even to the owner role)', async () => {
+    await runMigration();
+    // pg_tables.forcerowsecurity was added in Postgres 16; query pg_class directly
+    // so this test works across Postgres versions.
+    const result = await db.execute(sql`
+      SELECT relforcerowsecurity FROM pg_class WHERE relname = 'tasks' AND relkind = 'r'
+    `);
+    const forced = result.rows?.[0]?.relforcerowsecurity ?? result[0]?.relforcerowsecurity;
+    expect(forced).toBe(true);
+  }, 30000);
 });

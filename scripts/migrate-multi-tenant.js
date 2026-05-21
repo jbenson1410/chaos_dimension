@@ -59,8 +59,11 @@ export async function runMigration() {
     }
 
     // 5. Enable RLS + policies. CREATE POLICY is not idempotent; guard explicitly.
+    //    FORCE is required so RLS applies to the table owner role too — without it,
+    //    Postgres bypasses RLS for the owner (which is the Neon connection role).
     for (const table of SCOPED_TABLES) {
       await tx.execute(sql.raw(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`));
+      await tx.execute(sql.raw(`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`));
       await tx.execute(sql.raw(`
         DO $$ BEGIN
           IF NOT EXISTS (
