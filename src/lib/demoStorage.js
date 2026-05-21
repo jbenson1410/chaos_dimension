@@ -1,8 +1,19 @@
+// Bumped to v2 so visitors with cached demo state from the previous
+// (real-looking) seed get the new dummy data on next load.
 const KEYS = {
-  tasks: 'chaos_demo_tasks',
-  agents: 'chaos_demo_agents',
-  workstreams: 'chaos_demo_workstreams',
+  tasks: 'chaos_demo_tasks_v2',
+  agents: 'chaos_demo_agents_v2',
+  workstreams: 'chaos_demo_workstreams_v2',
 };
+
+// Legacy keys from v1, removed eagerly so we don't leak the old seed
+// through inspector / export tooling.
+const LEGACY_KEYS = ['chaos_demo_tasks', 'chaos_demo_agents', 'chaos_demo_workstreams'];
+if (typeof localStorage !== 'undefined') {
+  for (const k of LEGACY_KEYS) {
+    try { localStorage.removeItem(k); } catch { /* ignore */ }
+  }
+}
 
 export function loadDemo(name, fallback) {
   try {
