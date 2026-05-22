@@ -1,4 +1,5 @@
 import { getDb } from '../../src/db/client.js';
+import { withUserContext } from '../../src/lib/userContext.js';
 import { agentTokens } from '../../src/db/schema.js';
 import { requireAuth } from '../../src/lib/requireAuth.js';
 import { withErrors, methodNotAllowed } from '../../src/lib/apiHandler.js';
@@ -13,12 +14,14 @@ export default withErrors(async function handle(req, res) {
 
   if (req.method !== 'DELETE') return methodNotAllowed(res, 'DELETE');
 
-  const db = getDb();
-  const [row] = await db
-    .update(agentTokens)
-    .set({ revoked: true })
-    .where(eq(agentTokens.id, id))
-    .returning();
+  const row = await withUserContext(getDb(), session.userId, async (tx) => {
+    const [updated] = await tx
+      .update(agentTokens)
+      .set({ revoked: true })
+      .where(eq(agentTokens.id, id))
+      .returning();
+    return updated;
+  });
 
   if (!row) return res.status(404).json({ error: 'not found', message: 'Token not found.' });
   return res.status(200).json({ ok: true });

@@ -1,4 +1,5 @@
 import { getDb } from '../../src/db/client.js';
+import { withUserContext } from '../../src/lib/userContext.js';
 import { workstreams } from '../../src/db/schema.js';
 import { requireAuth } from '../../src/lib/requireAuth.js';
 import { withErrors, methodNotAllowed } from '../../src/lib/apiHandler.js';
@@ -27,10 +28,10 @@ export default withErrors(async function handle(req, res) {
   const session = await requireAuth(req, res);
   if (!session) return;
 
-  const db = getDb();
-
   if (req.method === 'GET') {
-    const rows = await db.select().from(workstreams);
+    const rows = await withUserContext(getDb(), session.userId, async (tx) => {
+      return tx.select().from(workstreams);
+    });
     return res.status(200).json(rows);
   }
 
@@ -53,13 +54,19 @@ export default withErrors(async function handle(req, res) {
       });
     }
 
-    const id = await nextAvailableId(db, baseId);
-    if (!id) {
+    const result = await withUserContext(getDb(), session.userId, async (tx) => {
+      const id = await nextAvailableId(tx, baseId);
+      if (!id) return { collision: true };
+      const [row] = await tx.insert(workstreams).values({
+        id, label, color, icon,
+        userId: session.userId,
+      }).returning();
+      return { row };
+    });
+    if (result.collision) {
       return res.status(409).json({ error: 'id collision', message: 'Too many workstreams with this name.' });
     }
-
-    const [row] = await db.insert(workstreams).values({ id, label, color, icon }).returning();
-    return res.status(201).json(row);
+    return res.status(201).json(result.row);
   }
 
   return methodNotAllowed(res, 'GET, POST');
