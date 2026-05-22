@@ -1,4 +1,5 @@
 import { getDb } from '../../src/db/client.js';
+import { withUserContext } from '../../src/lib/userContext.js';
 import { agents } from '../../src/db/schema.js';
 import { requireAuth } from '../../src/lib/requireAuth.js';
 import { withErrors, methodNotAllowed } from '../../src/lib/apiHandler.js';
@@ -23,8 +24,10 @@ export default withErrors(async function handle(req, res) {
     return res.status(400).json({ error: 'no fields to update', message: 'No fields provided.' });
   }
 
-  const db = getDb();
-  const [row] = await db.update(agents).set(updates).where(eq(agents.id, id)).returning();
+  const row = await withUserContext(getDb(), session.userId, async (tx) => {
+    const [updated] = await tx.update(agents).set(updates).where(eq(agents.id, id)).returning();
+    return updated;
+  });
   if (!row) return res.status(404).json({ error: 'not found', message: 'Agent not found.' });
   return res.status(200).json(row);
 });

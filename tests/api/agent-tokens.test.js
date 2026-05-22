@@ -30,15 +30,25 @@ function makeFakeDb() {
 
 describe('POST /api/agent-tokens (mintTokenLogic)', () => {
   it('returns 400 when label is missing', async () => {
-    const result = await mintTokenLogic({ db: makeFakeDb(), body: {} });
+    const result = await mintTokenLogic({ db: makeFakeDb(), body: {}, userId: 'test-user' });
     expect(result.status).toBe(400);
   });
 
   it('mints a token and returns the raw value once', async () => {
-    const result = await mintTokenLogic({ db: makeFakeDb(), body: { label: 'macbook' } });
+    const result = await mintTokenLogic({ db: makeFakeDb(), body: { label: 'macbook' }, userId: 'test-user' });
     expect(result.status).toBe(201);
     expect(result.body.token).toMatch(/^cd_/);
     expect(result.body.label).toBe('macbook');
     expect(result.body).toHaveProperty('agentId');
+  });
+
+  it('stamps userId on both the agent row and the token row', async () => {
+    const db = makeFakeDb();
+    const result = await mintTokenLogic({ db, body: { label: 'macbook' }, userId: 'test-user' });
+    expect(result.status).toBe(201);
+    expect(db.state.agents).toHaveLength(1);
+    expect(db.state.agents[0].userId).toBe('test-user');
+    expect(db.state.agentTokens).toHaveLength(1);
+    expect(db.state.agentTokens[0].userId).toBe('test-user');
   });
 });

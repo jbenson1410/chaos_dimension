@@ -1,8 +1,10 @@
 import { getDb } from '../../src/db/client.js';
+import { withUserContext } from '../../src/lib/userContext.js';
 import { workstreams } from '../../src/db/schema.js';
 import { requireAuth } from '../../src/lib/requireAuth.js';
 import { withErrors, methodNotAllowed } from '../../src/lib/apiHandler.js';
 import { eq } from 'drizzle-orm';
+import { createId } from '@paralleldrive/cuid2';
 
 function slugify(s) {
   return String(s)
@@ -13,12 +15,15 @@ function slugify(s) {
     .slice(0, 64);
 }
 
-async function nextAvailableId(db, baseId) {
-  const exists = async (id) => (await db.select().from(workstreams).where(eq(workstreams.id, id))).length > 0;
-  if (!(await exists(baseId))) return baseId;
+// Find a slug not already taken by this user. Runs inside the caller's
+// withUserContext transaction, so RLS scopes the lookup to one user — slugs
+// are unique per user, not globally.
+async function nextAvailableSlug(tx, base) {
+  const taken = async (slug) => (await tx.select().from(workstreams).where(eq(workstreams.slug, slug))).length > 0;
+  if (!(await taken(base))) return base;
   for (let n = 2; n <= 100; n += 1) {
-    const candidate = `${baseId}-${n}`;
-    if (!(await exists(candidate))) return candidate;
+    const candidate = `${base}-${n}`;
+    if (!(await taken(candidate))) return candidate;
   }
   return null;
 }
@@ -27,10 +32,10 @@ export default withErrors(async function handle(req, res) {
   const session = await requireAuth(req, res);
   if (!session) return;
 
-  const db = getDb();
-
   if (req.method === 'GET') {
-    const rows = await db.select().from(workstreams);
+    const rows = await withUserContext(getDb(), session.userId, async (tx) => {
+      return tx.select().from(workstreams);
+    });
     return res.status(200).json(rows);
   }
 
@@ -39,27 +44,36 @@ export default withErrors(async function handle(req, res) {
     const label = typeof body.label === 'string' ? body.label.trim() : '';
     const color = typeof body.color === 'string' ? body.color.trim() : '';
     const icon = typeof body.icon === 'string' ? body.icon.trim() : '';
-    const providedId = typeof body.id === 'string' ? body.id : '';
 
     if (!label) return res.status(400).json({ error: 'label required', message: 'Workstream name is required.' });
     if (!color) return res.status(400).json({ error: 'color required', message: 'Color is required.' });
     if (!icon) return res.status(400).json({ error: 'icon required', message: 'Icon is required.' });
 
-    const baseId = slugify(providedId || label);
-    if (!baseId) {
+    const baseSlug = slugify(label);
+    if (!baseSlug) {
       return res.status(400).json({
-        error: 'invalid id',
-        message: 'Could not derive a URL-safe id from the label. Try adding letters or numbers.',
+        error: 'invalid label',
+        message: 'Could not derive a URL-safe slug from the label. Try adding letters or numbers.',
       });
     }
 
-    const id = await nextAvailableId(db, baseId);
-    if (!id) {
-      return res.status(409).json({ error: 'id collision', message: 'Too many workstreams with this name.' });
+    const result = await withUserContext(getDb(), session.userId, async (tx) => {
+      const slug = await nextAvailableSlug(tx, baseSlug);
+      if (!slug) return { collision: true };
+      const [row] = await tx.insert(workstreams).values({
+        id: createId(),
+        label,
+        color,
+        icon,
+        slug,
+        userId: session.userId,
+      }).returning();
+      return { row };
+    });
+    if (result.collision) {
+      return res.status(409).json({ error: 'slug collision', message: 'Too many workstreams with this name.' });
     }
-
-    const [row] = await db.insert(workstreams).values({ id, label, color, icon }).returning();
-    return res.status(201).json(row);
+    return res.status(201).json(result.row);
   }
 
   return methodNotAllowed(res, 'GET, POST');

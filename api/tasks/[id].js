@@ -1,4 +1,5 @@
 import { getDb } from '../../src/db/client.js';
+import { withUserContext } from '../../src/lib/userContext.js';
 import { tasks } from '../../src/db/schema.js';
 import { requireAuth } from '../../src/lib/requireAuth.js';
 import { withErrors, methodNotAllowed } from '../../src/lib/apiHandler.js';
@@ -13,8 +14,6 @@ export default withErrors(async function handle(req, res) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'id required' });
 
-  const db = getDb();
-
   if (req.method === 'PATCH') {
     const updates = {};
     for (const k of ALLOWED_FIELDS) {
@@ -24,13 +23,19 @@ export default withErrors(async function handle(req, res) {
       return res.status(400).json({ error: 'no fields to update', message: 'No fields provided.' });
     }
     updates.updatedAt = new Date();
-    const [row] = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
+    const row = await withUserContext(getDb(), session.userId, async (tx) => {
+      const [updated] = await tx.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
+      return updated;
+    });
     if (!row) return res.status(404).json({ error: 'not found', message: 'Task not found.' });
     return res.status(200).json(row);
   }
 
   if (req.method === 'DELETE') {
-    const [row] = await db.delete(tasks).where(eq(tasks.id, id)).returning();
+    const row = await withUserContext(getDb(), session.userId, async (tx) => {
+      const [deleted] = await tx.delete(tasks).where(eq(tasks.id, id)).returning();
+      return deleted;
+    });
     if (!row) return res.status(404).json({ error: 'not found', message: 'Task not found.' });
     return res.status(200).json({ ok: true });
   }
