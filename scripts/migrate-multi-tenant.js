@@ -6,7 +6,11 @@ import { sql } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 import { getMigrationDb } from '../src/db/client.js';
 
-const SCOPED_TABLES = ['tasks', 'workstreams', 'agents', 'agent_tokens', 'runs', 'oauth_clients'];
+// Tables that get NOT NULL user_id + FK + RLS isolation.
+const RLS_TABLES = ['tasks', 'workstreams', 'agents', 'agent_tokens', 'runs'];
+// oauth_clients keeps a nullable user_id linkage column (stamped at consent),
+// but no RLS — the OAuth register endpoint is unauthenticated and must be able
+// to insert a client row before any user exists.
 
 export async function runMigration() {
   const email = process.env.CHAOS_OWNER_EMAIL;
@@ -26,8 +30,19 @@ export async function runMigration() {
     const owner = rows.rows?.[0]?.id ?? rows[0]?.id;
     if (!owner) throw new Error('owner row not found after insert');
 
-    // 2. Backfill user_id on every scoped table.
-    for (const table of SCOPED_TABLES) {
+    // 1b. One-time corrective: an earlier version of this migration RLS-scoped
+    //     oauth_clients. Undo that — oauth_clients must stay un-scoped because
+    //     POST /api/oauth/register is an unauthenticated Dynamic Client
+    //     Registration endpoint with no user session. All three statements are
+    //     idempotent (no-op if already in the target state).
+    await tx.execute(sql.raw(`ALTER TABLE oauth_clients DISABLE ROW LEVEL SECURITY`));
+    await tx.execute(sql.raw(`DROP POLICY IF EXISTS oauth_clients_user_isolation ON oauth_clients`));
+    await tx.execute(sql.raw(`ALTER TABLE oauth_clients ALTER COLUMN user_id DROP NOT NULL`));
+
+    // 2. Backfill user_id. RLS tables get it; oauth_clients also gets a
+    //    backfill so existing client rows stay linked to the owner — but that
+    //    column stays nullable (NULL at registration, stamped at consent).
+    for (const table of [...RLS_TABLES, 'oauth_clients']) {
       await tx.execute(sql.raw(`UPDATE ${table} SET user_id = '${owner}' WHERE user_id IS NULL`));
     }
 
@@ -43,8 +58,9 @@ export async function runMigration() {
       await tx.execute(sql`UPDATE workstreams SET id = ${newId} WHERE id = ${oldId}`);
     }
 
-    // 4. Lock NOT NULL + FK on user_id. Idempotent guard for the FK.
-    for (const table of SCOPED_TABLES) {
+    // 4. Lock NOT NULL + FK on user_id — RLS tables only. oauth_clients keeps a
+    //    nullable user_id (see note at top of file). Idempotent guard for the FK.
+    for (const table of RLS_TABLES) {
       await tx.execute(sql.raw(`ALTER TABLE ${table} ALTER COLUMN user_id SET NOT NULL`));
       await tx.execute(sql.raw(`
         DO $$ BEGIN
@@ -59,10 +75,25 @@ export async function runMigration() {
       `));
     }
 
-    // 5. Enable RLS + policies. CREATE POLICY is not idempotent; guard explicitly.
-    //    FORCE is required so RLS applies to the table owner role too — without it,
-    //    Postgres bypasses RLS for the owner (which is the Neon connection role).
-    for (const table of SCOPED_TABLES) {
+    // 4b. oauth_clients gets an optional nullable FK referencing users(id) with
+    //     ON DELETE SET NULL (not CASCADE) — deleting a user must not delete the
+    //     OAuth client rows. The column itself stays nullable.
+    await tx.execute(sql.raw(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'oauth_clients_user_id_fk'
+        ) THEN
+          ALTER TABLE oauth_clients ADD CONSTRAINT oauth_clients_user_id_fk
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
+    `));
+
+    // 5. Enable RLS + policies — RLS tables only. CREATE POLICY is not idempotent;
+    //    guard explicitly. FORCE is required so RLS applies to the table owner role
+    //    too — without it, Postgres bypasses RLS for the owner (the Neon role).
+    for (const table of RLS_TABLES) {
       await tx.execute(sql.raw(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`));
       await tx.execute(sql.raw(`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`));
       await tx.execute(sql.raw(`
