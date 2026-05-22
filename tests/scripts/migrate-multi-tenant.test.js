@@ -4,7 +4,7 @@ dotenvConfig({ path: '.env.local' });
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { sql } from 'drizzle-orm';
-import { getDb } from '../../src/db/client.js';
+import { getMigrationDb } from '../../src/db/client.js';
 import { users, tasks, workstreams } from '../../src/db/schema.js';
 import { runMigration } from '../../scripts/migrate-multi-tenant.js';
 
@@ -12,8 +12,11 @@ const SKIP = !process.env.DATABASE_URL || !process.env.CHAOS_OWNER_EMAIL;
 const describeMaybe = SKIP ? describe.skip : describe;
 
 describeMaybe('migrate-multi-tenant', () => {
+  // Use the owner-role connection (same one runMigration uses internally) for
+  // assertions: they verify migration / DDL state and read RLS-scoped tables,
+  // which the cd_app role would have RLS-denied.
   let db;
-  beforeAll(() => { db = getDb(); });
+  beforeAll(() => { db = getMigrationDb(); });
 
   it('inserts the owner from CHAOS_OWNER_EMAIL and is idempotent', async () => {
     await runMigration();

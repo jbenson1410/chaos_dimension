@@ -51,13 +51,13 @@ export const users = pgTable('users', {
 | `tasks` | `user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE` |
 | `workstreams` | `user_id ...` (workstreams become per-user) |
 | `agents` | `user_id ...` |
-| `agent_tokens` | `user_id ...` |
 | `runs` | `user_id ...` |
 
 ### Unchanged / un-scoped
 
-These tables stay un-scoped because they're either OAuth infrastructure, children of an already-scoped row, or genuinely cross-user:
+These tables stay un-scoped because they're either OAuth infrastructure, auth credential lookup tables, children of an already-scoped row, or genuinely cross-user:
 
+- `agent_tokens` — keeps a `user_id` linkage column (NOT NULL, with a CASCADE FK — the mint endpoint is always authenticated), but is **not** RLS-scoped. `agent_tokens` is looked up by `token_hash` before any user context exists (it's how the user is resolved during MCP auth), so it cannot be RLS-scoped — an RLS policy would make every agent-token lookup return zero rows, breaking authentication entirely.
 - `oauth_clients` — keeps a nullable `user_id` linkage column stamped at consent, but is **not** RLS-scoped. `POST /api/oauth/register` is an unauthenticated Dynamic Client Registration endpoint and must insert a client row before any user context exists, so `user_id` is NULL at registration and stamped on Allow. Looked up by `client_id` and token-hash joins, never by user scoping.
 - `oauth_access_tokens`, `oauth_refresh_tokens`, `oauth_auth_codes` — scope follows their parent `oauth_clients.user_id`. The bearer-lookup join in `mcpAuth.js` returns the inherited `userId`.
 - `oauth_events` — audit log; `client_id` is enough to trace ownership.
@@ -112,11 +112,12 @@ UPDATE tasks SET user_id = (SELECT id FROM owner);
 
 -- 5. Re-key workstreams (per "Workstream re-keying" above).
 
--- 6. Lock in NOT NULL + FK on user_id (RLS tables only).
+-- 6. Lock in NOT NULL + CASCADE FK on user_id (RLS tables + agent_tokens).
 ALTER TABLE tasks ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE tasks ADD CONSTRAINT tasks_user_id_fk
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
--- … same for workstreams, agents, agent_tokens, runs.
+-- … same for workstreams, agents, runs, and agent_tokens (NOT NULL + CASCADE FK
+-- but no RLS — agent_tokens is an un-scoped auth credential lookup table).
 -- oauth_clients gets only an optional nullable FK (ON DELETE SET NULL),
 -- never NOT NULL, never RLS.
 
@@ -125,7 +126,7 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tasks_user_isolation ON tasks
   USING (user_id = current_setting('app.current_user_id', true))
   WITH CHECK (user_id = current_setting('app.current_user_id', true));
--- … same for workstreams, agents, agent_tokens, runs (NOT oauth_clients).
+-- … same for workstreams, agents, runs (NOT agent_tokens, NOT oauth_clients).
 ```
 
 **Reversibility:** drop policies → drop user_id columns → drop users. The workstream rekey loses original slugs (the `legacy_slug` column hangs around for one release as a cheap escape hatch).

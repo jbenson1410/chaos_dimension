@@ -7,10 +7,15 @@ import { createId } from '@paralleldrive/cuid2';
 import { getMigrationDb } from '../src/db/client.js';
 
 // Tables that get NOT NULL user_id + FK + RLS isolation.
-const RLS_TABLES = ['tasks', 'workstreams', 'agents', 'agent_tokens', 'runs'];
+const RLS_TABLES = ['tasks', 'workstreams', 'agents', 'runs'];
 // oauth_clients keeps a nullable user_id linkage column (stamped at consent),
 // but no RLS — the OAuth register endpoint is unauthenticated and must be able
 // to insert a client row before any user exists.
+//
+// agent_tokens keeps a NOT NULL user_id linkage column + FK (the mint endpoint
+// always has a session), but no RLS: it's looked up by token_hash before any
+// user context exists (it's how the user is resolved during MCP auth), so an
+// RLS policy would make every agent-token lookup return zero rows.
 
 export async function runMigration() {
   const email = process.env.CHAOS_OWNER_EMAIL;
@@ -39,10 +44,20 @@ export async function runMigration() {
     await tx.execute(sql.raw(`DROP POLICY IF EXISTS oauth_clients_user_isolation ON oauth_clients`));
     await tx.execute(sql.raw(`ALTER TABLE oauth_clients ALTER COLUMN user_id DROP NOT NULL`));
 
-    // 2. Backfill user_id. RLS tables get it; oauth_clients also gets a
-    //    backfill so existing client rows stay linked to the owner — but that
-    //    column stays nullable (NULL at registration, stamped at consent).
-    for (const table of [...RLS_TABLES, 'oauth_clients']) {
+    // 1c. One-time corrective: an earlier version of this migration RLS-scoped
+    //     agent_tokens. Undo that — agent_tokens is looked up by token_hash
+    //     before any user context exists (it's how MCP auth resolves the user),
+    //     so an RLS policy makes every agent-token lookup return zero rows.
+    //     agent_tokens keeps its NOT NULL user_id + FK (the mint endpoint always
+    //     has a session). Both statements are idempotent (no-op if already off).
+    await tx.execute(sql.raw(`ALTER TABLE agent_tokens DISABLE ROW LEVEL SECURITY`));
+    await tx.execute(sql.raw(`DROP POLICY IF EXISTS agent_tokens_user_isolation ON agent_tokens`));
+
+    // 2. Backfill user_id. RLS tables get it; agent_tokens and oauth_clients
+    //    also get a backfill so existing rows stay linked to the owner —
+    //    oauth_clients's column stays nullable (NULL at registration, stamped
+    //    at consent), agent_tokens's becomes NOT NULL below.
+    for (const table of [...RLS_TABLES, 'agent_tokens', 'oauth_clients']) {
       await tx.execute(sql.raw(`UPDATE ${table} SET user_id = '${owner}' WHERE user_id IS NULL`));
     }
 
@@ -58,9 +73,11 @@ export async function runMigration() {
       await tx.execute(sql`UPDATE workstreams SET id = ${newId} WHERE id = ${oldId}`);
     }
 
-    // 4. Lock NOT NULL + FK on user_id — RLS tables only. oauth_clients keeps a
-    //    nullable user_id (see note at top of file). Idempotent guard for the FK.
-    for (const table of RLS_TABLES) {
+    // 4. Lock NOT NULL + CASCADE FK on user_id — RLS tables plus agent_tokens
+    //    (its mint endpoint always has a session, so NOT NULL is safe even
+    //    though it isn't RLS-scoped). oauth_clients keeps a nullable user_id
+    //    (see note at top of file). Idempotent guard for the FK.
+    for (const table of [...RLS_TABLES, 'agent_tokens']) {
       await tx.execute(sql.raw(`ALTER TABLE ${table} ALTER COLUMN user_id SET NOT NULL`));
       await tx.execute(sql.raw(`
         DO $$ BEGIN
