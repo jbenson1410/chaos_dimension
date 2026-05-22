@@ -1,7 +1,16 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, or, desc } from 'drizzle-orm';
 import { getDb } from '../db/client.js';
 import { tasks, agents, workstreams } from '../db/schema.js';
 import { withUserContext } from './userContext.js';
+
+// Resolve a workstream identifier (cuid id OR human slug) to the canonical id.
+// Returns null if no match for this user.
+async function resolveWorkstreamId(tx, value) {
+  if (!value) return null;
+  const rows = await tx.select().from(workstreams)
+    .where(or(eq(workstreams.id, value), eq(workstreams.slug, value)));
+  return rows[0]?.id ?? null;
+}
 
 const TOOL_DEFS = [
   {
@@ -30,7 +39,12 @@ const TOOL_DEFS = [
     handler: async ({ db, userId, input }) => {
       return withUserContext(db, userId, async (tx) => {
         const conds = [];
-        if (input.workstream) conds.push(eq(tasks.workstream, input.workstream));
+        if (input.workstream) {
+          const wsId = await resolveWorkstreamId(tx, input.workstream);
+          // Filter given but unknown — return an empty list rather than all tasks.
+          if (!wsId) return [];
+          conds.push(eq(tasks.workstream, wsId));
+        }
         if (input.column) conds.push(eq(tasks.column, input.column));
         if (input.priority) conds.push(eq(tasks.priority, input.priority));
         const limit = Math.min(input.limit ?? 20, 200);
@@ -78,11 +92,13 @@ const TOOL_DEFS = [
       if (!input.title?.trim()) throw new Error('title required');
       if (!input.workstream?.trim()) throw new Error('workstream required');
       return withUserContext(db, userId, async (tx) => {
+        const wsId = await resolveWorkstreamId(tx, input.workstream);
+        if (!wsId) throw new Error(`unknown workstream: ${input.workstream}`);
         const [row] = await tx
           .insert(tasks)
           .values({
             title: input.title.trim(),
-            workstream: input.workstream,
+            workstream: wsId,
             column: input.column ?? 'backlog',
             priority: input.priority ?? 'med',
             notes: input.notes ?? '',

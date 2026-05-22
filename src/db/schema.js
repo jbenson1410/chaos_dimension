@@ -6,6 +6,7 @@ export const workstreams = pgTable('workstreams', {
   label: text('label').notNull(),
   color: text('color').notNull(),
   icon: text('icon').notNull(),
+  slug: text('slug'),
   userId: text('user_id'),
 });
 

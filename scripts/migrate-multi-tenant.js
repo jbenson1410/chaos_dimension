@@ -8,6 +8,14 @@ import { getMigrationDb } from '../src/db/client.js';
 
 // Tables that get NOT NULL user_id + FK + RLS isolation.
 const RLS_TABLES = ['tasks', 'workstreams', 'agents', 'runs'];
+
+// Local slugify — kept self-contained so this Node script has no frontend deps.
+function slugify(s) {
+  return String(s).toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'workstream';
+}
 // oauth_clients keeps a nullable user_id linkage column (stamped at consent),
 // but no RLS — the OAuth register endpoint is unauthenticated and must be able
 // to insert a client row before any user exists.
@@ -72,6 +80,44 @@ export async function runMigration() {
       await tx.execute(sql`UPDATE tasks SET workstream = ${newId} WHERE workstream = ${oldId}`);
       await tx.execute(sql`UPDATE workstreams SET id = ${newId} WHERE id = ${oldId}`);
     }
+
+    // 3b. Workstream slug column: human-readable identifier, unique per user.
+    //     The rekey above made workstreams.id an opaque cuid; this restores a
+    //     stable human handle so MCP tools can accept slug-or-cuid. All steps
+    //     idempotent (column add guarded, backfill only fills NULLs, index
+    //     guarded). Uniqueness deduped in JS per user_id group.
+    await tx.execute(sql.raw(`ALTER TABLE workstreams ADD COLUMN IF NOT EXISTS slug text`));
+
+    const slugRows = await tx.execute(
+      sql`SELECT id, label, slug, user_id FROM workstreams`
+    );
+    const slugList = slugRows.rows ?? slugRows;
+    // Group by user_id; track slugs already taken so we can suffix collisions.
+    const takenByUser = new Map(); // user_id -> Set(slug)
+    for (const ws of slugList) {
+      if (ws.slug) {
+        if (!takenByUser.has(ws.user_id)) takenByUser.set(ws.user_id, new Set());
+        takenByUser.get(ws.user_id).add(ws.slug);
+      }
+    }
+    for (const ws of slugList) {
+      if (ws.slug) continue; // already backfilled
+      if (!takenByUser.has(ws.user_id)) takenByUser.set(ws.user_id, new Set());
+      const taken = takenByUser.get(ws.user_id);
+      const base = slugify(ws.label);
+      let candidate = base;
+      let n = 2;
+      while (taken.has(candidate)) {
+        candidate = `${base}-${n}`;
+        n += 1;
+      }
+      taken.add(candidate);
+      await tx.execute(sql`UPDATE workstreams SET slug = ${candidate} WHERE id = ${ws.id}`);
+    }
+
+    await tx.execute(sql.raw(
+      `CREATE UNIQUE INDEX IF NOT EXISTS workstreams_user_slug_uniq ON workstreams (user_id, slug)`
+    ));
 
     // 4. Lock NOT NULL + CASCADE FK on user_id — RLS tables plus agent_tokens
     //    (its mint endpoint always has a session, so NOT NULL is safe even
