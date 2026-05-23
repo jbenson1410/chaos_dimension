@@ -133,3 +133,17 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+// Invite codes for Phase 2 signup. Not RLS-scoped — administrative
+// resource looked up by code (an unguessable secret). Codes are
+// one-shot: claimedAt + claimedByUserId are set on first use, and
+// signup refuses any code with a non-null claimedAt.
+export const inviteCodes = pgTable('invite_codes', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  code: text('code').notNull().unique(),
+  createdById: text('created_by_id').notNull(),
+  claimedByUserId: text('claimed_by_user_id'),
+  claimedAt: timestamp('claimed_at'),
+  note: text('note').notNull().default(''),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
