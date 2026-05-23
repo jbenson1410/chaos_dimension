@@ -1,11 +1,12 @@
 async function request(path, opts = {}) {
+  const { skipAuthRedirect, ...rest } = opts;
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    ...opts,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    ...rest,
+    body: rest.body ? JSON.stringify(rest.body) : undefined,
   });
-  if (res.status === 401) {
+  if (res.status === 401 && !skipAuthRedirect) {
     window.location.href = '/login';
     throw new Error('unauthorized');
   }
@@ -25,7 +26,10 @@ async function request(path, opts = {}) {
 
 export const api = {
   me: () => request('/api/me'),
-  login: (password) => request('/api/login', { method: 'POST', body: { password } }),
+  // skipAuthRedirect — these endpoints' 401 is the legitimate response,
+  // not a "your session expired, send them to /login" signal.
+  login: ({ email, password }) => request('/api/login', { method: 'POST', body: { email, password }, skipAuthRedirect: true }),
+  signup: ({ email, password, inviteCode }) => request('/api/signup', { method: 'POST', body: { email, password, invite_code: inviteCode }, skipAuthRedirect: true }),
   logout: () => request('/api/logout', { method: 'POST' }),
   listTasks: () => request('/api/tasks'),
   createTask: (task) => request('/api/tasks', { method: 'POST', body: task }),
@@ -37,4 +41,9 @@ export const api = {
   createWorkstream: (ws) => request('/api/workstreams', { method: 'POST', body: ws }),
   updateWorkstream: (id, updates) => request(`/api/workstreams/${id}`, { method: 'PATCH', body: updates }),
   deleteWorkstream: (id) => request(`/api/workstreams/${id}`, { method: 'DELETE' }),
+  // MCP credential management — used by the Connect AI walk-through.
+  listMyTokens: () => request('/api/agent-tokens'),
+  mintToken: (label) => request('/api/agent-tokens', { method: 'POST', body: { label } }),
+  revokeToken: (id) => request(`/api/agent-tokens/${id}`, { method: 'DELETE' }),
+  listMyOauthClients: () => request('/api/oauth/clients/mine'),
 };

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Landing from './pages/Landing';
 import About from './pages/About';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import App from './pages/App';
 import OauthConsent from './pages/OauthConsent';
 import { api } from './lib/api';
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
   },
   { path: '/about', element: <About /> },
   { path: '/login', element: <Login /> },
+  { path: '/signup', element: <Signup /> },
   { path: '/app', element: <ProtectedApp /> },
   { path: '/oauth/consent', element: <OauthConsent /> },
 ]);
