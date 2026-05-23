@@ -1,4 +1,5 @@
 import { getDb } from '../../src/db/client.js';
+import { withUserContext } from '../../src/lib/userContext.js';
 import { workstreams, tasks } from '../../src/db/schema.js';
 import { requireAuth } from '../../src/lib/requireAuth.js';
 import { withErrors, methodNotAllowed } from '../../src/lib/apiHandler.js';
@@ -13,8 +14,6 @@ export default withErrors(async function handle(req, res) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'id required' });
 
-  const db = getDb();
-
   if (req.method === 'PATCH') {
     const updates = {};
     for (const k of ALLOWED_FIELDS) {
@@ -23,22 +22,30 @@ export default withErrors(async function handle(req, res) {
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'no fields to update', message: 'No fields provided.' });
     }
-    const [row] = await db.update(workstreams).set(updates).where(eq(workstreams.id, id)).returning();
+    const row = await withUserContext(getDb(), session.userId, async (tx) => {
+      const [updated] = await tx.update(workstreams).set(updates).where(eq(workstreams.id, id)).returning();
+      return updated;
+    });
     if (!row) return res.status(404).json({ error: 'not found', message: 'Workstream not found.' });
     return res.status(200).json(row);
   }
 
   if (req.method === 'DELETE') {
-    const referencing = await db.select().from(tasks).where(eq(tasks.workstream, id));
-    if (referencing.length > 0) {
+    const result = await withUserContext(getDb(), session.userId, async (tx) => {
+      const referencing = await tx.select().from(tasks).where(eq(tasks.workstream, id));
+      if (referencing.length > 0) return { referencing };
+      const [deleted] = await tx.delete(workstreams).where(eq(workstreams.id, id)).returning();
+      return { row: deleted };
+    });
+    if (result.referencing) {
+      const referencing = result.referencing;
       return res.status(409).json({
         error: 'workstream in use',
         message: `Cannot delete: ${referencing.length} task${referencing.length === 1 ? '' : 's'} still in this workstream. Move or delete them first.`,
         taskCount: referencing.length,
       });
     }
-    const [row] = await db.delete(workstreams).where(eq(workstreams.id, id)).returning();
-    if (!row) return res.status(404).json({ error: 'not found', message: 'Workstream not found.' });
+    if (!result.row) return res.status(404).json({ error: 'not found', message: 'Workstream not found.' });
     return res.status(200).json({ ok: true });
   }
 
