@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 import { useTheme } from '../themes';
 
-const AUTO_DISMISS_MS = 5000;
+const AUTO_DISMISS_MS = 15000;
 
 const MCP_TOOLS = [
   'list_tasks',
@@ -273,9 +273,7 @@ export default function LandingIntroDialog({ onClose }) {
               GitHub →
             </a>
             <a
-              href="https://www.chaosdimension.fyi"
-              target="_blank"
-              rel="noreferrer noopener"
+              href="/login"
               className="mac-btn mac-btn-primary"
               style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
             >
