@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../themes';
 import { api } from '../lib/api';
 
-export default function Login() {
+export default function Signup() {
   const { theme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
@@ -16,10 +17,10 @@ export default function Login() {
     setBusy(true);
     setError(null);
     try {
-      await api.login({ email, password });
+      await api.signup({ email, password, inviteCode });
       nav('/app');
     } catch (err) {
-      setError(err?.message || 'Invalid email or password');
+      setError(err?.message || 'Sign up failed.');
     } finally {
       setBusy(false);
     }
@@ -31,7 +32,7 @@ export default function Login() {
         style={{
           background: theme.chrome,
           border: theme.windowBorder,
-          width: 340,
+          width: 360,
           boxShadow: theme.windowShadow || '4px 4px 0 rgba(0,0,0,0.3)',
           color: theme.text,
           fontFamily: theme.FONT,
@@ -59,7 +60,7 @@ export default function Login() {
             padding: theme.id === 'classic' ? '0 10px' : '0',
             color: theme.titleTextColor,
           }}>
-            {theme.id === 'terminal' ? '── Sign in to Chaos Dimension ──' : 'Sign in to Chaos Dimension'}
+            {theme.id === 'terminal' ? '── Create your account ──' : 'Create your account'}
           </span>
         </div>
         <form onSubmit={submit} style={{ padding: 20, background: theme.windowBg }}>
@@ -81,18 +82,31 @@ export default function Login() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
+            autoComplete="new-password"
+            style={theme.input}
+          />
+          <div style={{ marginTop: 4, fontSize: 10, color: theme.textDim }}>
+            At least 8 characters.
+          </div>
+          <label style={{ display: 'block', margin: '12px 0 6px', fontSize: 11, fontWeight: 'bold', color: theme.textDim }}>
+            Invite code
+          </label>
+          <input
+            type="text"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            placeholder="cd_inv_..."
             style={theme.input}
           />
           {error && (
             <div style={{ color: '#990000', marginTop: 8, fontSize: 11 }}>{error}</div>
           )}
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Link to="/signup" style={{ ...theme.link, fontSize: 11 }}>
-              Need an account? Sign up
+            <Link to="/login" style={{ ...theme.link, fontSize: 11 }}>
+              Already have an account? Sign in
             </Link>
             <button type="submit" disabled={busy} className="mac-btn mac-btn-primary">
-              {busy ? 'Signing in...' : 'OK'}
+              {busy ? 'Creating...' : 'Sign up'}
             </button>
           </div>
         </form>

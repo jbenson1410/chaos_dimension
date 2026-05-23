@@ -43,6 +43,18 @@ export async function runMigration() {
     const owner = rows.rows?.[0]?.id ?? rows[0]?.id;
     if (!owner) throw new Error('owner row not found after insert');
 
+    // 1a. Stamp the owner's users.password_hash from CHAOS_PASSWORD_HASH if it
+    //     hasn't been set yet. This unifies the owner into the same
+    //     {email, password} login flow new users use — no more env-only
+    //     direct-compare path in api/login.js. Idempotent (WHERE NULL guard).
+    const envHash = process.env.CHAOS_PASSWORD_HASH;
+    if (envHash) {
+      await tx.execute(sql`
+        UPDATE users SET password_hash = ${envHash}
+        WHERE id = ${owner} AND password_hash IS NULL
+      `);
+    }
+
     // 1b. One-time corrective: an earlier version of this migration RLS-scoped
     //     oauth_clients. Undo that — oauth_clients must stay un-scoped because
     //     POST /api/oauth/register is an unauthenticated Dynamic Client

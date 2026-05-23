@@ -262,6 +262,13 @@ export default function App({ mode = 'live' }) {
             } />
           )}
         </MenuBarItem>
+        <MenuBarItem label="Connect AI" active={activeMenu === "connect"} onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "connect" ? null : "connect"); }}>
+          {activeMenu === "connect" && (
+            <MenuDropdown items={[
+              { label: 'Set up Claude / ChatGPT / Claude Code…', action: () => { window.location.href = '/connect'; setActiveMenu(null); } },
+            ]} />
+          )}
+        </MenuBarItem>
         <MenuBarItem label="Theme" active={activeMenu === "theme"} onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "theme" ? null : "theme"); }}>
           {activeMenu === "theme" && (
             <MenuDropdown items={THEME_LIST.map(t => ({
