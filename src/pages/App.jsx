@@ -245,8 +245,14 @@ export default function App({ mode = 'live' }) {
             <MenuDropdown items={[
               { label: "New Task", shortcut: "⌘N", action: () => { setShowAddTask(true); setActiveMenu(null); } },
               { label: "Manage Workstreams...", action: () => { setShowWorkstreams(true); setActiveMenu(null); } },
-              { divider: true },
-              { label: "Reset All Data...", action: () => { resetData(); setActiveMenu(null); } },
+              // "Reset All Data..." only makes sense in the demo (it clears
+              // localStorage). In live mode it never touched the DB and just
+              // flashed the demo seed onto the user's board until the next
+              // poll — misleading UX, hide it.
+              ...(isDemo ? [
+                { divider: true },
+                { label: "Reset All Data...", action: () => { resetData(); setActiveMenu(null); } },
+              ] : []),
             ]} />
           )}
         </MenuBarItem>
