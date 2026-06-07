@@ -11,7 +11,8 @@ import { getIronSession } from 'iron-session';
 import { sessionOptions } from './session.js';
 
 export async function getSession(req, res) {
-  if (process.env.NODE_ENV === 'test' && req.__sessionOverride !== undefined) {
+  const isTestEnv = process.env.NODE_ENV === 'test' && process.env.VITEST === 'true';
+  if (isTestEnv && req.__sessionOverride !== undefined) {
     const override = req.__sessionOverride;
     return override === null
       ? { authed: false, save: async () => {} }

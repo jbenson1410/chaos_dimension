@@ -40,6 +40,7 @@ export default function App({ mode = 'live' }) {
   const [showAbout, setShowAbout] = useState(false);
   const [showWorkstreams, setShowWorkstreams] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
+  const closeCoach = useCallback(() => setCoachOpen(false), []);
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 60000);
@@ -364,24 +365,26 @@ export default function App({ mode = 'live' }) {
             }))} />
           )}
         </MenuBarItem>
-        <MenuBarItem
-          label="Help"
-          active={activeMenu === "help"}
-          onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "help" ? null : "help"); }}
-        >
-          {activeMenu === "help" && (
-            <MenuDropdown items={[
-              {
-                label: "Getting Started...",
-                action: async () => {
-                  try { await api.resetOnboarding(); } catch { /* ignore */ }
-                  setCoachOpen(true);
-                  setActiveMenu(null);
+        {mode === 'live' && (
+          <MenuBarItem
+            label="Help"
+            active={activeMenu === "help"}
+            onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "help" ? null : "help"); }}
+          >
+            {activeMenu === "help" && (
+              <MenuDropdown items={[
+                {
+                  label: "Getting Started...",
+                  action: async () => {
+                    try { await api.resetOnboarding(); } catch { /* ignore */ }
+                    setCoachOpen(true);
+                    setActiveMenu(null);
+                  },
                 },
-              },
-            ]} />
-          )}
-        </MenuBarItem>
+              ]} />
+            )}
+          </MenuBarItem>
+        )}
       </MenuBar>
 
       {/* ══════ DESKTOP ══════ */}
@@ -564,7 +567,7 @@ export default function App({ mode = 'live' }) {
         />
       )}
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
-      {mode === 'live' && <OnboardingCoach open={coachOpen} onClose={() => setCoachOpen(false)} />}
+      {mode === 'live' && <OnboardingCoach open={coachOpen} onClose={closeCoach} />}
       {showWorkstreams && (
         <WorkstreamModal
           workstreams={workstreams}
