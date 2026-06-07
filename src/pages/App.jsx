@@ -17,6 +17,7 @@ import TaskModal from '../components/TaskModal';
 import AgentCard from '../components/AgentCard';
 import AboutDialog from '../components/AboutDialog';
 import WorkstreamModal from '../components/WorkstreamModal';
+import OnboardingCoach from '../components/OnboardingCoach';
 import { api } from '../lib/api';
 import { loadDemo, saveDemo, clearDemo, localId, slugify } from '../lib/demoStorage';
 import { useIsMobile } from '../lib/useIsMobile';
@@ -38,11 +39,25 @@ export default function App({ mode = 'live' }) {
   const [activeMenu, setActiveMenu] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
   const [showWorkstreams, setShowWorkstreams] = useState(false);
+  const [coachOpen, setCoachOpen] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'live') return;
+    let cancelled = false;
+    api.getOnboarding()
+      .then(s => {
+        if (cancelled) return;
+        const done = s.has_connected_ai && s.has_mcp_created_task;
+        if (!s.coach_dismissed && !done) setCoachOpen(true);
+      })
+      .catch(() => { /* ignore — coach stays closed */ });
+    return () => { cancelled = true; };
+  }, [mode]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -349,6 +364,24 @@ export default function App({ mode = 'live' }) {
             }))} />
           )}
         </MenuBarItem>
+        <MenuBarItem
+          label="Help"
+          active={activeMenu === "help"}
+          onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "help" ? null : "help"); }}
+        >
+          {activeMenu === "help" && (
+            <MenuDropdown items={[
+              {
+                label: "Getting Started...",
+                action: async () => {
+                  try { await api.resetOnboarding(); } catch { /* ignore */ }
+                  setCoachOpen(true);
+                  setActiveMenu(null);
+                },
+              },
+            ]} />
+          )}
+        </MenuBarItem>
       </MenuBar>
 
       {/* ══════ DESKTOP ══════ */}
@@ -531,6 +564,7 @@ export default function App({ mode = 'live' }) {
         />
       )}
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+      {mode === 'live' && <OnboardingCoach open={coachOpen} onClose={() => setCoachOpen(false)} />}
       {showWorkstreams && (
         <WorkstreamModal
           workstreams={workstreams}
