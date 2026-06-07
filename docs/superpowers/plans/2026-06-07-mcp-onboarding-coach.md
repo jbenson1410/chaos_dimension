@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-06-07-mcp-onboarding-coach-design.md`
 
-**Spec deviation noted up-front:** Spec says "Help → Getting Started…" menu item. The codebase has no Help menu — Apple, File, View, Agents, Connect AI, Theme are the existing menus, and "About Chaos Dimension..." lives in Apple. Plan adds the item to the Apple menu (above the About item) rather than creating a one-item Help menu. If the user wants a separate Help menu, swap that one task.
+**Menu placement:** A new "Help" menu is added to the menu bar (rightmost or just before Theme — engineer chooses what reads cleanest), containing the "Getting Started..." item. Existing menus (Apple, File, View, Agents, Connect AI, Theme) are untouched.
 
 ---
 
@@ -880,22 +880,32 @@ useEffect(() => {
 
 Place this with the other top-level effects in the component.
 
-- [ ] **Step 3: Add the menu item**
+- [ ] **Step 3: Add a new Help menu with the Getting Started item**
 
-Find the Apple menu's `MenuDropdown items={[...]}` array (around line 282). Add an item above the "About Chaos Dimension..." entry:
+Find the menu bar block in `src/pages/App.jsx` (around line 279–352 — the chain of `<MenuBarItem>` children inside `<MenuBar>`). After the existing `Theme` `<MenuBarItem>` and before the closing `</MenuBar>`, add a new Help menu:
 
-```javascript
-{ label: "Getting Started...", action: async () => {
-    try { await resetOnboarding(); } catch { /* ignore */ }
-    setCoachOpen(true);
-    setActiveMenu(null);
-  }
-},
-{ divider: true },
-{ label: "About Chaos Dimension...", action: () => { setShowAbout(true); setActiveMenu(null); } },
+```jsx
+<MenuBarItem
+  label="Help"
+  active={activeMenu === "help"}
+  onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "help" ? null : "help"); }}
+>
+  {activeMenu === "help" && (
+    <MenuDropdown items={[
+      {
+        label: "Getting Started...",
+        action: async () => {
+          try { await resetOnboarding(); } catch { /* ignore */ }
+          setCoachOpen(true);
+          setActiveMenu(null);
+        },
+      },
+    ]} />
+  )}
+</MenuBarItem>
 ```
 
-(The `{ divider: true }` row separates Getting Started from About — matches the existing menu style per `MenuBar.jsx:60`.)
+`MenuBarItem` and `MenuDropdown` are already imported at line 14 — no new imports needed for this step.
 
 - [ ] **Step 4: Render the coach**
 
@@ -909,7 +919,7 @@ Near the `{showAbout && <AboutDialog ... />}` line (around line 533), add (only 
 
 ```bash
 git add src/pages/App.jsx
-git commit -m "ui: mount OnboardingCoach in live mode + Apple menu item"
+git commit -m "ui: mount OnboardingCoach in live mode + Help menu"
 ```
 
 ---
@@ -942,11 +952,11 @@ Click the close box (top-left). Window disappears. Reload `/app` — coach reapp
 
 - [ ] **Step 5: Test "Don't show again"**
 
-Reopen the coach (Apple → Getting Started...). Click "Don't show again". Window closes. Reload `/app` — coach does NOT reappear.
+Reopen the coach (Help → Getting Started...). Click "Don't show again". Window closes. Reload `/app` — coach does NOT reappear.
 
 - [ ] **Step 6: Test the reset path**
 
-Apple → Getting Started... Coach opens again. Both rows still empty.
+Help → Getting Started... Coach opens again. Both rows still empty.
 
 - [ ] **Step 7: Test auto-tick for item 1**
 
@@ -974,7 +984,7 @@ Within ~3s after both items are ✓, the coach body shows "You're set up. ✨", 
 - Two checklist items with all copy → Task 5 Step 1
 - Auto-detection via 10s polling → Task 5 Step 1
 - Visual chrome details (checkbox style, tabs, buttons, z-index 100) → Task 5 Step 1
-- Help menu item → Task 6 Step 3 (deviation: Apple menu, documented at top)
+- Help menu item → Task 6 Step 3 (new Help menu added)
 - Verification → Task 7
 
 **Placeholder scan:** No TBDs, no "implement appropriate", no test-stubs-without-code. The one acceptable hedge is in Task 3 Step 4: the comment about wrapping `mcpTaskCount` in `withUserContext` *if* the project enforces that — this is a conditional based on observable code, not a TODO. Engineer will check `api/tasks/index.js` and act.
