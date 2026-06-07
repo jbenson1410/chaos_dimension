@@ -102,7 +102,8 @@ CREATE TABLE IF NOT EXISTS "waitlist" (
 ALTER TABLE "agent_tokens" ADD COLUMN "user_id" text;--> statement-breakpoint
 ALTER TABLE "agents" ADD COLUMN "user_id" text;--> statement-breakpoint
 ALTER TABLE "runs" ADD COLUMN "user_id" text;--> statement-breakpoint
-ALTER TABLE "tasks" ADD COLUMN "created_via" text DEFAULT 'ui' NOT NULL;--> statement-breakpoint
+ALTER TABLE "tasks" ADD COLUMN IF NOT EXISTS "created_via" text DEFAULT 'ui' NOT NULL;--> statement-breakpoint
 ALTER TABLE "tasks" ADD COLUMN "user_id" text;--> statement-breakpoint
 ALTER TABLE "workstreams" ADD COLUMN "slug" text;--> statement-breakpoint
-ALTER TABLE "workstreams" ADD COLUMN "user_id" text;
+ALTER TABLE "workstreams" ADD COLUMN "user_id" text;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "coach_dismissed" boolean DEFAULT false NOT NULL;
