@@ -55,4 +55,8 @@ export const api = {
   mintToken: (label) => request('/api/agent-tokens', { method: 'POST', body: { label } }),
   revokeToken: (id) => request(`/api/agent-tokens/${id}`, { method: 'DELETE' }),
   listMyOauthClients: () => request('/api/oauth/clients/mine'),
+  // Onboarding coach state — read flags, dismiss the coach, or reset to re-open it.
+  getOnboarding: () => request('/api/me/onboarding'),
+  dismissOnboarding: () => request('/api/me/onboarding', { method: 'POST', body: { action: 'dismiss' } }),
+  resetOnboarding: () => request('/api/me/onboarding', { method: 'POST', body: { action: 'reset' } }),
 };
