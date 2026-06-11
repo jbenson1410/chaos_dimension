@@ -59,4 +59,14 @@ export const api = {
   getOnboarding: () => request('/api/me/onboarding'),
   dismissOnboarding: () => request('/api/me/onboarding', { method: 'POST', body: { action: 'dismiss' } }),
   resetOnboarding: () => request('/api/me/onboarding', { method: 'POST', body: { action: 'reset' } }),
+  // Owner admin — all of these 403 for non-owner sessions.
+  listInvites: () => request('/api/admin/invites'),
+  mintInvite: (note = '') => request('/api/admin/invites', { method: 'POST', body: { note } }),
+  revokeInvite: (id) => request(`/api/admin/invites/${id}`, { method: 'DELETE' }),
+  listUsers: () => request('/api/admin/users'),
+  resetUserPassword: (id, password) => request(`/api/admin/users/${id}`, { method: 'PATCH', body: password ? { password } : {} }),
+  deleteUser: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
+  listWaitlist: () => request('/api/waitlist'),
+  inviteFromWaitlist: (id) => request(`/api/admin/waitlist/${id}`, { method: 'POST' }),
+  deleteWaitlistEntry: (id) => request(`/api/admin/waitlist/${id}`, { method: 'DELETE' }),
 };

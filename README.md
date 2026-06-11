@@ -127,6 +127,7 @@ In short: Chaos Dimension coordinates *what* gets worked on and surfaces the sta
 - Workstream color-coding with striped progress bars
 - ⚡ markers on agent-dispatchable tasks
 - Password-gated private mode + optional public demo landing (interactive, localStorage-backed)
+- Owner admin page (`/admin`): mint/revoke invites, reset a user's password, and invite from the waitlist — all from the browser (the CLI scripts still work)
 - MCP server: connect Claude Code; tasks update from inside your coding sessions
 - Four themes (Classic Mac OS, Minimal, Terminal, Modern)
 - Live dashboard updates (polls every 10s when the tab is visible)

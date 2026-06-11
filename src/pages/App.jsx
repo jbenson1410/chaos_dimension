@@ -40,7 +40,14 @@ export default function App({ mode = 'live' }) {
   const [showAbout, setShowAbout] = useState(false);
   const [showWorkstreams, setShowWorkstreams] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const closeCoach = useCallback(() => setCoachOpen(false), []);
+
+  // Owner status gates the Admin menu (live mode only).
+  useEffect(() => {
+    if (isDemo) return;
+    api.me().then((r) => setIsOwner(!!r?.isOwner)).catch(() => {});
+  }, [isDemo]);
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 60000);
@@ -357,6 +364,15 @@ export default function App({ mode = 'live' }) {
             ]} />
           )}
         </MenuBarItem>
+        {mode === 'live' && isOwner && (
+          <MenuBarItem label="Admin" active={activeMenu === "admin"} onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "admin" ? null : "admin"); }}>
+            {activeMenu === "admin" && (
+              <MenuDropdown items={[
+                { label: 'Manage invites & users…', action: () => { window.location.href = '/admin'; setActiveMenu(null); } },
+              ]} />
+            )}
+          </MenuBarItem>
+        )}
         <MenuBarItem label="Theme" active={activeMenu === "theme"} onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === "theme" ? null : "theme"); }}>
           {activeMenu === "theme" && (
             <MenuDropdown items={THEME_LIST.map(t => ({

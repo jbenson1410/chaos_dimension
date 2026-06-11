@@ -15,6 +15,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import App from './pages/App';
 import Connect from './pages/Connect';
+import Admin from './pages/Admin';
 import OauthConsent from './pages/OauthConsent';
 import { api } from './lib/api';
 
@@ -30,6 +31,18 @@ function ProtectedApp() {
   return <App mode="live" />;
 }
 
+// Owner-only gate. Non-owners (and signed-out visitors) are redirected to the
+// board, which itself bounces signed-out users to /login.
+function OwnerOnly({ children }) {
+  const [state, setState] = useState('loading');
+  useEffect(() => {
+    api.me().then((r) => setState(r?.isOwner ? 'ok' : 'redirect')).catch(() => setState('redirect'));
+  }, []);
+  if (state === 'loading') return null;
+  if (state === 'redirect') return <Navigate to="/app" replace />;
+  return children;
+}
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -40,6 +53,7 @@ const router = createBrowserRouter([
   { path: '/signup', element: <Signup /> },
   { path: '/app', element: <ProtectedApp /> },
   { path: '/connect', element: <Connect /> },
+  { path: '/admin', element: <OwnerOnly><Admin /></OwnerOnly> },
   { path: '/oauth/consent', element: <OauthConsent /> },
 ]);
 

@@ -11,10 +11,10 @@ import 'dotenv/config';
 import { config as dotenvConfig } from 'dotenv';
 dotenvConfig({ path: '.env.local' });
 
-import { randomBytes } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 import { getMigrationDb } from '../src/db/client.js';
+import { generateInviteCode, inviteLink } from '../src/lib/invites.js';
 
 function parseArgs(argv) {
   const args = { note: '' };
@@ -25,11 +25,6 @@ function parseArgs(argv) {
     }
   }
   return args;
-}
-
-function generateCode() {
-  // 12 bytes → 16 base64url chars. ~96 bits entropy.
-  return `cd_inv_${randomBytes(12).toString('base64url')}`;
 }
 
 export async function mintInvite({ note }) {
@@ -43,7 +38,7 @@ export async function mintInvite({ note }) {
     throw new Error(`owner row not found for ${email} — run db:migrate-multi-tenant`);
   }
 
-  const code = generateCode();
+  const code = generateInviteCode();
   await db.execute(sql`
     INSERT INTO invite_codes (id, code, created_by_id, note)
     VALUES (${createId()}, ${code}, ${ownerId}, ${note ?? ''})
@@ -55,10 +50,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = parseArgs(process.argv.slice(2));
   mintInvite(args)
     .then(({ code, note }) => {
-      const baseUrl =
-        process.env.PUBLIC_SITE_URL?.replace(/\/$/, '') ||
-        'https://www.chaosdimension.fyi';
-      const link = `${baseUrl}/signup?invite=${encodeURIComponent(code)}`;
+      const link = inviteLink(code);
       // Single source of truth — token shown once.
       console.log('');
       console.log('Invite code minted:');

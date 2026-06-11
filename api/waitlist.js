@@ -7,11 +7,12 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Affero General Public License for more details.
-import { eq, desc } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 import { getDb } from '../src/db/client.js';
-import { waitlist, users } from '../src/db/schema.js';
+import { waitlist } from '../src/db/schema.js';
 import { checkRateLimit, ipBucket } from '../src/lib/oauthRateLimit.js';
 import { getSession } from '../src/lib/requireAuth.js';
+import { assertOwner } from '../src/lib/requireOwner.js';
 import { withErrors, methodNotAllowed } from '../src/lib/apiHandler.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -70,19 +71,10 @@ export async function handlePost({ db, body, ip }) {
 }
 
 export async function handleGet({ db, session, ownerEmail }) {
-  if (!session?.authed || !session?.userId) {
-    return { status: 401, body: { error: 'unauthorized' } };
-  }
-  // Owner-only: resolve the owner row by CHAOS_OWNER_EMAIL and require
-  // the caller's userId to match. Cheap; users isn't RLS-scoped.
-  if (!ownerEmail) {
-    return { status: 500, body: { error: 'CHAOS_OWNER_EMAIL not configured' } };
-  }
-  const rows = await db.select({ id: users.id }).from(users).where(eq(users.email, ownerEmail)).limit(1);
-  const ownerId = rows[0]?.id;
-  if (!ownerId || session.userId !== ownerId) {
-    return { status: 403, body: { error: 'forbidden' } };
-  }
+  // Owner-only — shared gate (resolves the owner row by CHAOS_OWNER_EMAIL and
+  // requires the caller's userId to match).
+  const denied = await assertOwner({ db, session, ownerEmail });
+  if (denied) return denied;
 
   const list = await db
     .select()
