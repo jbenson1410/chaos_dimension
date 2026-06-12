@@ -8,9 +8,9 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Affero General Public License for more details.
 
-// Notion-style skin: warm off-white canvas, near-black warm text (#37352F),
-// hairline #E9E9E7 borders, soft shadows, gentle radii, and the Notion blue
-// (#2383E2) as the single accent. System sans stack, like Notion's.
+// Notional — a Notion-style skin: warm off-white canvas, near-black warm text
+// (#37352F), hairline #E9E9E7 borders, soft shadows, gentle radii, and the
+// Notion blue (#2383E2) as the single accent. System sans stack, like Notion's.
 const FONT = `ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif`;
 
 const colors = {
@@ -65,8 +65,8 @@ const GLOBAL_CSS = `
 `;
 
 const theme = {
-  id: 'notion',
-  label: 'Notion',
+  id: 'notional',
+  label: 'Notional',
   FONT,
   ...colors,
   desktopBgImage: 'none',

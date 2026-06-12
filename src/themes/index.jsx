@@ -12,17 +12,17 @@ import classic from './classic';
 import minimal from './minimal';
 import terminal from './terminal';
 import modern from './modern';
-import notion from './notion';
+import notional from './notional';
 
 export const THEMES = {
   classic,
   minimal,
   terminal,
   modern,
-  notion,
+  notional,
 };
 
-export const THEME_LIST = [classic, minimal, terminal, modern, notion];
+export const THEME_LIST = [classic, minimal, terminal, modern, notional];
 
 const STORAGE_KEY = 'chaos_theme';
 const DEFAULT_THEME = 'classic';
