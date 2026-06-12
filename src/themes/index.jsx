@@ -9,20 +9,18 @@
 // GNU Affero General Public License for more details.
 import { createContext, useContext, useEffect, useState } from 'react';
 import classic from './classic';
+import notional from './notional';
 import minimal from './minimal';
 import terminal from './terminal';
-import modern from './modern';
-import notional from './notional';
 
 export const THEMES = {
   classic,
+  notional,
   minimal,
   terminal,
-  modern,
-  notional,
 };
 
-export const THEME_LIST = [classic, minimal, terminal, modern, notional];
+export const THEME_LIST = [classic, notional, minimal, terminal];
 
 const STORAGE_KEY = 'chaos_theme';
 const DEFAULT_THEME = 'classic';
